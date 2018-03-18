@@ -21,6 +21,7 @@ public class MulticastListenner implements Runnable {
 
 	@Override
 	public void run() {		
+		System.out.println("Vou ficar à escuta no multicast");
 		while(true) {
 			byte[] requestPacket = new byte[256];
 			DatagramPacket packet = new DatagramPacket(requestPacket, requestPacket.length);
@@ -30,7 +31,8 @@ public class MulticastListenner implements Runnable {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			
+			String message = new String(packet.getData());
+
 			new Thread(new EventHandler(packet, this.peer)).start();
 		}
 	}
