@@ -90,7 +90,7 @@ public class EventHandler implements Runnable {
 			}
 			
 			try {
-				saveStoredChunksInfo(header[2], header[3], header[4]);
+				Util.saveStoredChunksInfo(header[2], header[3], Integer.parseInt(header[4]), this.peer);
 			} catch (FileNotFoundException e) {
 				System.out.println("Erro");
 			} catch (IOException e) {
@@ -110,57 +110,6 @@ public class EventHandler implements Runnable {
 
 		case "REMOVED":
 			break;
-		}
-	}
-
-	private void saveStoredChunksInfo(String senderID, String fileID, String chunkNr) throws IOException {
-		String hashmapKey = chunkNr + "_" + fileID;
-		
-		ArrayList<Integer> chunkHosts = this.peer.getChunkHosts().get(hashmapKey);
-		
-		//Check if is the first stored message of the chunk
-		if(chunkHosts == null) {
-			chunkHosts = new ArrayList<Integer>();
-			chunkHosts.add(Integer.parseInt(senderID));
-			
-			this.peer.getChunkHosts().put(hashmapKey, chunkHosts);
-			this.peer.getStoredReplies().put(hashmapKey, 1);
-		} else {
-			//Check if senderID is already in the list
-			if(!chunkHosts.contains(senderID)) {
-				chunkHosts.add(Integer.parseInt(senderID));
-				this.peer.getChunkHosts().put(hashmapKey, chunkHosts);
-			}
-			
-			this.peer.getStoredReplies().put(hashmapKey, chunkHosts.size());
-		}
-		
-		saveNonVolatileMemory(hashmapKey, chunkHosts.size());
-	}
-
-	private void saveNonVolatileMemory(String key, int actualReplicationDegree) throws IOException {
-		int desiredReplicationDegree = this.peer.getDesiredReplicationDegrees().get(key);
-		Properties chunksProperties = this.peer.getChunksInfoProperties();
-		OutputStream chunksFile = null;		
-		
-		chunksProperties.setProperty(key + "_desired", Integer.toString(desiredReplicationDegree));
-		chunksProperties.setProperty(key + "_actual", Integer.toString(actualReplicationDegree));
-
-		try {
-			chunksFile = new FileOutputStream(Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.peer.getID() + "/" + Peer.CHUNKS_FOLDER + "/chunksInfo.properties");
-			
-			chunksProperties.store(chunksFile, null);
-		} catch (IOException io) {
-			System.out.println("Erro");
-		} finally {
-			if (chunksFile != null) {
-				try {
-					chunksFile.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
 		}
 	}
 }

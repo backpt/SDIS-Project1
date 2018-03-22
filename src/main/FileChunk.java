@@ -36,6 +36,10 @@ public class FileChunk implements Runnable {
 			fos.write(this.content);
 		}
 		
+		//Save chunks info in memory
+		Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), this.fileID, this.number, this.peer);
+		
+		//Send message STORED
 		byte [] packet = makeStoreChunkReply();
 		this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
 	}
