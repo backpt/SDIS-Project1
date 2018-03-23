@@ -22,17 +22,15 @@ public class Backup {
 		this.replicationDegree = replication;
 		this.peer = peer;
 		this.fileName = file;
-		this.fileID = file; //Para alterar pelo identificador
 
 		createIdentifier();
 		splitFile();
 	}
 
 	private void createIdentifier() {
-		// TODO Auto-generated method stub
 		try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            FileInputStream fis = new FileInputStream(this.fileName);
+            FileInputStream fis = new FileInputStream(this.filePath);
            
             byte[] dataBytes = new byte[8192];
  
@@ -49,14 +47,10 @@ public class Backup {
               sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1));
             }
            
-            this.fileID = sb.toString();
-            // System.out.println("SHA: " + this.hash);
- 
+            this.fileID = sb.toString(); 
         } catch (Exception e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
-		
 	}
 
 	private void splitFile() throws FileNotFoundException, IOException {
