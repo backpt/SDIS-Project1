@@ -66,6 +66,7 @@ public class EventHandler implements Runnable {
 		switch (header[0]) {
 
 		case "PUTCHUNK":			
+			System.out.println("putchunk");
 			if (header.length != 6) {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
@@ -77,9 +78,21 @@ public class EventHandler implements Runnable {
 			}
 			
 			//Save desired replication degree of chunk file
-			this.peer.getDesiredReplicationDegrees().put(header[4] + "_" + header[3], Integer.parseInt(header[5]));
+			String hashmapKey = header[4] + "_" + header[3];
+			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
+			
+			//Check if I already stored this chunk
+			ArrayList<Integer> chunkHosts = peer.getChunkHosts().get(hashmapKey);
+			
+			if(chunkHosts != null && chunkHosts.contains(this.peer.getID())) {
+				return;
+			}
 
-			new Thread(new FileChunk(header[3], Integer.parseInt(header[4]), this.body, Integer.parseInt(header[5]), this.peer)).start();
+			try {
+				storeChunk(header[3], header[4], this.body);
+			} catch (IOException e1) {
+				System.out.println("Error storing chunk");
+			}
 
 			break;
 
@@ -111,5 +124,29 @@ public class EventHandler implements Runnable {
 		case "REMOVED":
 			break;
 		}
+	}
+	
+	private void storeChunk(String fileID, String chunkNr, byte[] content) throws IOException {
+		String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
+				"/" + chunkNr + "_" + fileID;
+		
+		try (FileOutputStream fos = new FileOutputStream(filePath)) {
+			fos.write(content);
+		}
+		
+		//Save chunks info in memory
+		Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), fileID, Integer.parseInt(chunkNr), this.peer);
+		
+		//Send message STORED
+		byte [] packet = makeStoreChunkReply(fileID, chunkNr);
+		this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
+	}
+	
+	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
+		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
+				+ " " + chunkNr + " ";
+		message = message + EventHandler.CRLF + EventHandler.CRLF;
+		
+		return message.getBytes();
 	}
 }

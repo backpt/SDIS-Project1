@@ -2,6 +2,8 @@ package main;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class FileChunk implements Runnable {
 	
@@ -21,35 +23,37 @@ public class FileChunk implements Runnable {
 
 	@Override
 	public void run() {
+		byte [] packet = makePutChunkRequest();
 		try {
-			storeChunk();
-		} catch (IOException e) {
-			System.out.println("Error storing a chunk");
+			this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
+		} catch (IOException e1) {
+			System.out.println("Error sending putchunk message");
 		}
+		
+		isBackedUp();
 	}
 
-	private void storeChunk() throws IOException {
-		String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
-				"/" + this.number + "_" + this.fileID;
+	private void isBackedUp() {
+		String hashmapKey = this.number + "_" + this.fileID;
+		int actualReplicationDegree = 0;
 		
-		try (FileOutputStream fos = new FileOutputStream(filePath)) {
-			fos.write(this.content);
+		if(this.peer.getChunkHosts().get(hashmapKey) != null) {
+			//actualReplicationDegree = 
 		}
 		
-		//Save chunks info in memory
-		Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), this.fileID, this.number, this.peer);
-		
-		//Send message STORED
-		byte [] packet = makeStoreChunkReply();
-		this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
 	}
 	
-	private byte[] makeStoreChunkReply() {
-		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + this.fileID 
-				+ " " + this.number + " ";
+	private byte[] makePutChunkRequest() {
+		String message = "PUTCHUNK "+ this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + this.fileID + " " + this.number +
+				" " + this.replicationDegree + " ";
 		message = message + EventHandler.CRLF + EventHandler.CRLF;
 		
-		return message.getBytes();
+		byte [] header = message.getBytes();
+		byte[] packet = new byte[header.length + this.content.length];
+		System.arraycopy(header, 0, packet, 0, header.length);
+		System.arraycopy(this.content, 0, packet, header.length, this.content.length);
+		
+		return packet;
 	}
 
 }

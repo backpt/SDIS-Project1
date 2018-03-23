@@ -4,6 +4,8 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import main.*;
@@ -64,8 +66,11 @@ public class Backup {
 
 			int size = 0;
 			while ((size = bis.read(buffer)) > 0) {
-				byte [] packet = makePutChunkRequest(this.fileID, chunkNr, buffer, size, this.replicationDegree, this.peer);
-				this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
+				new Thread(new FileChunk(this.fileID, chunkNr, buffer, this.replicationDegree, this.peer)).start();
+				
+				//byte [] packet = makePutChunkRequest(this.fileID, chunkNr, buffer, size, this.replicationDegree, this.peer);
+				//this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
+				//
 				this.peer.getDesiredReplicationDegrees().put(chunkNr + "_" + this.fileID, this.replicationDegree);
 				chunkNr++;
 			}
@@ -74,20 +79,6 @@ public class Backup {
 		this.peer.getFilesIdentifiers().put(this.fileName, this.fileID);
 		this.peer.getNumberOfChunksPerFile().put(this.fileID, chunkNr);
 		this.peer.getFilesBackepUp().put(this.fileID, false);
-	}
-
-	private byte[] makePutChunkRequest(String file, int chunk, byte[] body, int size, int replication,
-			Peer sender) {
-		String message = "PUTCHUNK "+ sender.getProtocolVersion() + " " +sender.getID() + " " + file + " " + chunk +
-				" " + replication + " ";
-		message = message + EventHandler.CRLF + EventHandler.CRLF;
-		
-		byte [] header = message.getBytes();
-		byte[] packet = new byte[header.length + body.length];
-		System.arraycopy(header, 0, packet, 0, header.length);
-		System.arraycopy(body, 0, packet, header.length, body.length);
-		
-		return packet;
 	}
 
 }
