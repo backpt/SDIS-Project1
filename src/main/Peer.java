@@ -54,14 +54,14 @@ public class Peer {
 	private ConcurrentHashMap<String, Integer> numberChunksPerFile;
 	
 	/**
+	 * Stores the actual replication degree of each chunk file - <ChunkNr_FileID><Replication Degree>
+	 */
+	private ConcurrentHashMap<String, Integer> actualReplicationDegrees;
+	
+	/**
 	 * Stores the replication degree of each chunk file - <ChunkNr_FileID><Replication Degree>
 	 */
 	private ConcurrentHashMap<String, Integer> desiredReplicationDegrees;
-	
-	/**
-	 * Stores how many store replies has been sent per chunk - <ChunkNr_FileID><Number of Chunks>
-	 */
-	private ConcurrentHashMap<String, Integer> storedReplies;
 	
 	/**
 	 * Stores who has stored the chunk - <ChunkNr_FileID><List of Peer IDs>
@@ -107,8 +107,8 @@ public class Peer {
 		this.filesIdentifiers = new HashMap<String, String>();
 		this.filesBackedUp = new ConcurrentHashMap<String, Boolean>();
 		this.numberChunksPerFile = new ConcurrentHashMap<String, Integer>();
+		this.actualReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.desiredReplicationDegrees = new ConcurrentHashMap<String, Integer>();
-		this.storedReplies = new ConcurrentHashMap<String, Integer>();
 		this.chunksHosts = new ConcurrentHashMap<String, ArrayList<Integer>>();
 	}
 
@@ -180,8 +180,8 @@ public class Peer {
 		return this.desiredReplicationDegrees;
 	}
 	
-	public ConcurrentHashMap<String, Integer> getStoredReplies() {
-		return this.storedReplies;
+	public ConcurrentHashMap<String, Integer> getActualReplicationDegrees() {
+		return this.actualReplicationDegrees;
 	}
 	
 	public ConcurrentHashMap<String, ArrayList<Integer>> getChunkHosts() {

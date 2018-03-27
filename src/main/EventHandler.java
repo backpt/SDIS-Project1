@@ -1,15 +1,16 @@
 package main;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Properties;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class EventHandler implements Runnable {
 	private Peer peer;
@@ -52,7 +53,7 @@ public class EventHandler implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public void run() {		
 		// Check if it was me that sent the message - Ignore
 		if (Integer.parseInt(header[2]) == this.peer.getID()) {
 			return;
@@ -65,15 +66,14 @@ public class EventHandler implements Runnable {
 
 		switch (header[0]) {
 
-		case "PUTCHUNK":			
-			System.out.println("putchunk");
+		case "PUTCHUNK":	
 			if (header.length != 6) {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
 			
 			//Check if the chunk is from a file that I requested the backup
-			if(this.peer.getFilesBackepUp().containsKey(header[4])) {
+			if(this.peer.getFilesIdentifiers().containsValue(header[4])) {
 				return;
 			}
 			
@@ -87,16 +87,17 @@ public class EventHandler implements Runnable {
 			if(chunkHosts != null && chunkHosts.contains(this.peer.getID())) {
 				return;
 			}
-
-			try {
-				storeChunk(header[3], header[4], this.body);
-			} catch (IOException e1) {
-				System.out.println("Error storing chunk");
-			}
+			
+			Random random = new Random();
+	        int waitTime = random.nextInt(400);
+	        
+	        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+			
+			executor.schedule(storeChunk, waitTime, TimeUnit.MILLISECONDS);
 
 			break;
 
-		case "STORED":			
+		case "STORED":						
 			if (header.length != 5) {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
@@ -104,11 +105,9 @@ public class EventHandler implements Runnable {
 			
 			try {
 				Util.saveStoredChunksInfo(header[2], header[3], Integer.parseInt(header[4]), this.peer);
-			} catch (FileNotFoundException e) {
-				System.out.println("Erro");
 			} catch (IOException e) {
-				System.out.println("Erro");
-			}			
+				System.out.println("Error saving stored chunks info");
+			} 	
 			
 			break;
 
@@ -126,21 +125,31 @@ public class EventHandler implements Runnable {
 		}
 	}
 	
-	private void storeChunk(String fileID, String chunkNr, byte[] content) throws IOException {
-		String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
-				"/" + chunkNr + "_" + fileID;
+    Runnable storeChunk = () -> {
+    	String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
+				"/" + this.header[4] + "_" + this.header[3];
 		
 		try (FileOutputStream fos = new FileOutputStream(filePath)) {
-			fos.write(content);
+			fos.write(this.body);
+		} catch (IOException e) {
+			System.out.println("Error saving chunk file");
 		}
 		
 		//Save chunks info in memory
-		Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), fileID, Integer.parseInt(chunkNr), this.peer);
+		try {
+			Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), this.header[3], Integer.parseInt(this.header[4]), this.peer);
+		} catch (NumberFormatException | IOException e) {
+			System.out.println("Error saving chunks info");
+		}
 		
 		//Send message STORED
-		byte [] packet = makeStoreChunkReply(fileID, chunkNr);
-		this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
-	}
+		byte [] packet = makeStoreChunkReply(this.header[3], this.header[4]);
+		try {
+			this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
+		} catch (IOException e) {
+			System.out.println("Error sending message to multicast");
+		}
+	};
 	
 	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
 		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
@@ -149,4 +158,5 @@ public class EventHandler implements Runnable {
 		
 		return message.getBytes();
 	}
+
 }

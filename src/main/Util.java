@@ -19,15 +19,14 @@ public final class Util {
 			chunkHosts.add(Integer.parseInt(senderID));
 			
 			peer.getChunkHosts().put(hashmapKey, chunkHosts);
-			peer.getStoredReplies().put(hashmapKey, 1);
+			peer.getActualReplicationDegrees().put(hashmapKey, chunkHosts.size());
 		} else {
 			//Check if senderID is already in the list
-			if(!chunkHosts.contains(senderID)) {
+			if(!chunkHosts.contains(Integer.parseInt(senderID))) {
 				chunkHosts.add(Integer.parseInt(senderID));
-				peer.getChunkHosts().put(hashmapKey, chunkHosts);
+				peer.getChunkHosts().replace(hashmapKey, chunkHosts);
+				peer.getActualReplicationDegrees().replace(hashmapKey, chunkHosts.size());
 			}
-			
-			peer.getStoredReplies().put(hashmapKey, chunkHosts.size());
 		}
 		
 		Util.saveNonVolatileMemory(hashmapKey, chunkHosts.size(), peer);

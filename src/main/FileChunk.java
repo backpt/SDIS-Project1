@@ -1,11 +1,17 @@
 package main;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-public class FileChunk implements Runnable {
+public class FileChunk implements Callable<Boolean> {
 	
 	private String fileID;
 	private int number;
@@ -22,7 +28,7 @@ public class FileChunk implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Boolean call() {
 		byte [] packet = makePutChunkRequest();
 		try {
 			this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
@@ -30,17 +36,58 @@ public class FileChunk implements Runnable {
 			System.out.println("Error sending putchunk message");
 		}
 		
-		isBackedUp();
-	}
-
-	private void isBackedUp() {
-		String hashmapKey = this.number + "_" + this.fileID;
-		int actualReplicationDegree = 0;
+		boolean result = false;
 		
-		if(this.peer.getChunkHosts().get(hashmapKey) != null) {
-			//actualReplicationDegree = 
+		try {
+			result = checkStoredMessages();
+		} catch (InterruptedException | ExecutionException e) {
+			System.out.println("Error checking stored messages.");
 		}
 		
+		return result;
+	}
+
+	private boolean checkStoredMessages() throws InterruptedException, ExecutionException {
+		//Task that checks if the chunk has the desired replication degree
+		Callable<Boolean> isBackedUp = () -> {
+			String hashmapKey = this.number + "_" + this.fileID;
+			boolean backupDone = false;
+			
+			if(this.peer.getChunkHosts().get(hashmapKey) != null) {
+				int actualReplicationDegree = this.peer.getActualReplicationDegrees().get(hashmapKey);
+				
+				if(actualReplicationDegree >= this.replicationDegree) {					
+					backupDone = true;
+				} 	
+			} 
+			
+			//If the desired replication degree has not been fulfilled it sends again the putchunk request
+			if(!backupDone) {
+				byte [] packet = makePutChunkRequest();
+				this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
+			}
+			
+			return backupDone;
+		};
+		
+		ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
+		boolean result = false;
+		int count = 0;
+		int timeTask = 1;
+		
+		while(result == false && count < 5) {	
+			Future<Boolean> future = executor.schedule(isBackedUp, timeTask, TimeUnit.SECONDS);
+			
+			result = future.get();
+			
+			if(!result) {
+				timeTask = timeTask * 2;
+				count++;
+			} 
+		}
+		
+		return result;
 	}
 	
 	private byte[] makePutChunkRequest() {
