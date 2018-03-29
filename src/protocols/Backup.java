@@ -9,10 +9,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -20,7 +17,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import main.*;
 
-public class Backup {
+public class Backup implements Runnable {
 	private String fileID;
 	private String fileName;
 	private String filePath;
@@ -28,18 +25,45 @@ public class Backup {
 	private Peer peer;
 
 	private final int CHUNK_MAX_SIZE = 64000;
+	private final long FILE_MAX_SIZE = 64000000000L;
 
 	public Backup(String file, int replication, Peer peer) throws FileNotFoundException, IOException {
-		this.filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.FILES_FOLDER + "/"
-				+ file;
+		this.filePath = Peer.PEERS_FOLDER + "/" + Peer.SHARED_FOLDER + "/" + file;
 		this.replicationDegree = replication;
 		this.peer = peer;
 		this.fileName = file;
 
 		createIdentifier();
-		splitFile();
+	}
+	
+	@Override
+	public void run() {
+		//Check if the file has been backed up before
+		if(this.peer.getFilesIdentifiers().containsValue(this.fileID) && this.peer.getBackupState().get(this.fileID) == true) {
+			System.out.println("You have already done the backup of this file.");
+			return;
+		} 
+		
+		//Check the file size limit
+		if(new File(this.filePath).length() >= FILE_MAX_SIZE) {
+			System.out.println("File size exceeds the limit.");
+		}
+		
+		String oldFileID = this.peer.getFilesIdentifiers().get(this.fileName);
+		
+		//File was modified, so the system needs to delete the old version
+		if(oldFileID != null && !oldFileID.equals(this.fileID)) {
+			this.peer.sendDeleteRequest(this.fileName);
+		}
+		
+		try {
+			splitFile();
+		} catch (IOException e) {
+			System.out.println("File for backup not found.");
+		}
 	}
 
+	//Method to generate the file identifier
 	private void createIdentifier() {
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -69,15 +93,23 @@ public class Backup {
 	private void splitFile() throws FileNotFoundException, IOException {
 		byte[] buffer = new byte[CHUNK_MAX_SIZE];
 		int chunkNr = 0;
-
-		File file = new File(this.filePath);
+		List<Future<Boolean>> threadResults = new ArrayList<Future<Boolean>>();
+		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(100);
 
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		Date date = new Date();
-		System.out.println("Vou começar o backup" + dateFormat.format(date));
-
-		List<Future<Boolean>> threadResults = new ArrayList<Future<Boolean>>();
-		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(100);
+		System.out.println("Vou começar o backup: " + dateFormat.format(date));		
+		
+		this.peer.getFilesIdentifiers().put(this.fileName, this.fileID);
+		this.peer.getBackupState().put(this.fileID, false);
+		
+		File file = new File(this.filePath);
+		
+		boolean needChunkZero = false;
+		
+		if((file.length() % CHUNK_MAX_SIZE) == 0) {
+			needChunkZero = true;
+		}
 
 		try (FileInputStream fis = new FileInputStream(file); BufferedInputStream bis = new BufferedInputStream(fis)) {
 			int size = 0;
@@ -89,13 +121,38 @@ public class Backup {
 				this.peer.getDesiredReplicationDegrees().put(chunkNr + "_" + this.fileID, this.replicationDegree);
 				chunkNr++;
 			}
+			
+			//Add last chunk with zero length
+			if(needChunkZero) {
+				byte[] empty = new byte[0];
+				
+				Future<Boolean> result = scheduledPool.submit(new FileChunk(this.fileID, chunkNr, empty, this.replicationDegree, this.peer));
+				threadResults.add(result);
+				this.peer.getDesiredReplicationDegrees().put(chunkNr + "_" + this.fileID, this.replicationDegree);
+				chunkNr++;
+			}
 		}
 
-		this.peer.getFilesIdentifiers().put(this.fileName, this.fileID);
 		this.peer.getNumberOfChunksPerFile().put(this.fileID, chunkNr);
-		this.peer.getFilesBackepUp().put(this.fileID, false);
 		
-		//Await for chunk threads to finish
+		boolean backupDone = waitBackupResult(scheduledPool, threadResults);
+		
+		if(backupDone) {
+			Date date2 = new Date();
+			System.out.println("Backup completed. " + dateFormat.format(date2));
+			this.peer.getBackupState().replace(fileID, true);
+		} else {
+			Date date2 = new Date();
+			System.out.println("Backup was not completed. " + dateFormat.format(date2));
+		}
+		
+		this.peer.saveChunksInfoFile();
+		this.peer.saveFilesInfoFile();
+	}
+
+	//Method that waits for chunk threads to finish
+	private boolean waitBackupResult(ScheduledExecutorService scheduledPool, List<Future<Boolean>> threadResults) {
+		
 		boolean backupDone = false;
 		for (Future<Boolean> result : threadResults) {
 			try {
@@ -111,13 +168,7 @@ public class Backup {
 			}			
 		}
 		
-		if(backupDone) {
-			Date date2 = new Date();
-			System.out.println("Backup completed. " + dateFormat.format(date2));
-		} else {
-			Date date2 = new Date();
-			System.out.println("Backup was not completed. " + dateFormat.format(date2));
-		}
+		return backupDone;
 	}
 
 }

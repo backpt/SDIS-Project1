@@ -41,7 +41,6 @@ public class FileChunk implements Callable<Boolean> {
 		try {
 			result = checkStoredMessages();
 		} catch (InterruptedException | ExecutionException e) {
-			System.out.println("Error checking stored messages.");
 		}
 		
 		return result;
@@ -81,12 +80,14 @@ public class FileChunk implements Callable<Boolean> {
 			
 			result = future.get();
 			
+			//If the desired replication degree is not fulfilled, the time interval doubles
 			if(!result) {
 				timeTask = timeTask * 2;
 				count++;
 			} 
 		}
 		
+		executor.shutdownNow();
 		return result;
 	}
 	

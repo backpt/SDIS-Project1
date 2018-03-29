@@ -1,8 +1,10 @@
 package main;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
@@ -11,6 +13,9 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import protocols.Backup;
+import protocols.Delete;
 
 public class EventHandler implements Runnable {
 	private Peer peer;
@@ -72,11 +77,6 @@ public class EventHandler implements Runnable {
 				return;
 			}
 			
-			//Check if the chunk is from a file that I requested the backup
-			if(this.peer.getFilesIdentifiers().containsValue(header[4])) {
-				return;
-			}
-			
 			//Save desired replication degree of chunk file
 			String hashmapKey = header[4] + "_" + header[3];
 			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
@@ -103,11 +103,9 @@ public class EventHandler implements Runnable {
 				return;
 			}
 			
-			try {
-				Util.saveStoredChunksInfo(header[2], header[3], Integer.parseInt(header[4]), this.peer);
-			} catch (IOException e) {
-				System.out.println("Error saving stored chunks info");
-			} 	
+			//Save chunks information
+			this.peer.storeChunkInfo(Integer.parseInt(this.header[2]), this.header[3], Integer.parseInt(this.header[4]));
+			this.peer.saveChunksInfoFile();
 			
 			break;
 
@@ -118,38 +116,19 @@ public class EventHandler implements Runnable {
 			break;
 
 		case "DELETE":
+			if (header.length != 4) {
+				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
+				return;
+			}
+			
+			new Thread(new Delete(header[3], this.peer)).start();
+			
 			break;
 
 		case "REMOVED":
 			break;
 		}
 	}
-	
-    Runnable storeChunk = () -> {
-    	String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
-				"/" + this.header[4] + "_" + this.header[3];
-		
-		try (FileOutputStream fos = new FileOutputStream(filePath)) {
-			fos.write(this.body);
-		} catch (IOException e) {
-			System.out.println("Error saving chunk file");
-		}
-		
-		//Save chunks info in memory
-		try {
-			Util.saveStoredChunksInfo(new Integer(peer.getID()).toString(), this.header[3], Integer.parseInt(this.header[4]), this.peer);
-		} catch (NumberFormatException | IOException e) {
-			System.out.println("Error saving chunks info");
-		}
-		
-		//Send message STORED
-		byte [] packet = makeStoreChunkReply(this.header[3], this.header[4]);
-		try {
-			this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
-		} catch (IOException e) {
-			System.out.println("Error sending message to multicast");
-		}
-	};
 	
 	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
 		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
@@ -159,4 +138,26 @@ public class EventHandler implements Runnable {
 		return message.getBytes();
 	}
 
+	Runnable storeChunk = () -> {
+    	String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
+				"/" + this.header[4] + "_" + this.header[3];
+		
+		try (FileOutputStream fos = new FileOutputStream(filePath)) {
+			fos.write(this.body);
+		} catch (IOException e) {
+			System.out.println("Error saving chunk file");
+		}
+		
+		//Save chunks information
+		this.peer.storeChunkInfo(this.peer.getID(), this.header[3], Integer.parseInt(this.header[4]));
+		this.peer.saveChunksInfoFile();
+		
+		//Send message STORED
+		byte [] packet = makeStoreChunkReply(this.header[3], this.header[4]);
+		try {
+			this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
+		} catch (IOException e) {
+			System.out.println("Error sending message to multicast");
+		}
+	};
 }
