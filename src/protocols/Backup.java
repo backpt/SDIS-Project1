@@ -32,8 +32,7 @@ public class Backup implements Runnable {
 		this.replicationDegree = replication;
 		this.peer = peer;
 		this.fileName = file;
-
-		createIdentifier();
+		this.fileID = new FileIdentifier(filePath).toString();
 	}
 	
 	@Override
@@ -60,33 +59,6 @@ public class Backup implements Runnable {
 			splitFile();
 		} catch (IOException e) {
 			System.out.println("File for backup not found.");
-		}
-	}
-
-	//Method to generate the file identifier
-	private void createIdentifier() {
-		try {
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			FileInputStream fis = new FileInputStream(this.filePath);
-
-			byte[] dataBytes = new byte[8192];
-
-			int nread = 0;
-			while ((nread = fis.read(dataBytes)) != -1) {
-				md.update(dataBytes, 0, nread);
-			}
-			;
-			byte[] mdbytes = md.digest();
-			fis.close();
-
-			StringBuffer sb = new StringBuffer();
-			for (int i = 0; i < mdbytes.length; i++) {
-				sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1));
-			}
-
-			this.fileID = sb.toString();
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -152,8 +124,8 @@ public class Backup implements Runnable {
 
 	//Method that waits for chunk threads to finish
 	private boolean waitBackupResult(ScheduledExecutorService scheduledPool, List<Future<Boolean>> threadResults) {
-		
 		boolean backupDone = false;
+		int i = 0;
 		for (Future<Boolean> result : threadResults) {
 			try {
 				if(!result.get()) {
@@ -165,7 +137,9 @@ public class Backup implements Runnable {
 				}
 			} catch (InterruptedException | ExecutionException e) {
 				System.out.println("Chunk thread timed out.");
-			}			
+			}	
+			
+			i++;
 		}
 		
 		return backupDone;

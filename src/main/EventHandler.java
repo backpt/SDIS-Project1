@@ -10,6 +10,7 @@ import java.net.DatagramPacket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +83,7 @@ public class EventHandler implements Runnable {
 			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
 			
 			//Check if I already stored this chunk
-			ArrayList<Integer> chunkHosts = peer.getChunkHosts().get(hashmapKey);
+			CopyOnWriteArrayList<Integer> chunkHosts = peer.getChunkHosts().get(hashmapKey);
 			
 			if(chunkHosts != null && chunkHosts.contains(this.peer.getID())) {
 				return;

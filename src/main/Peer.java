@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import protocols.Backup;
 
@@ -80,7 +81,11 @@ public class Peer {
 	/**
 	 * Stores who has stored the chunk - <ChunkNr_FileID><List of Peer IDs>
 	 */
-	private ConcurrentHashMap<String, ArrayList<Integer>> chunksHosts;
+	private ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> chunksHosts;
+	
+	private ConcurrentHashMap<String, byte[]> restoredChunks;
+	
+	private ConcurrentHashMap<String, Boolean> waitRestoredChunks;
 
 	public Peer(String protocol, int id, String ap, InetAddress addressMC, int portMC, InetAddress addressMDB,
 			int portMDB, InetAddress addressMDR, int portMDR) throws IOException {
@@ -118,7 +123,7 @@ public class Peer {
 
 		// Client-Peer Communication Test
 		if (this.serverID == 1 || this.serverID == 2) {
-			createBackup("test128.txt", 3);
+			createBackup("bigbackup.txt", 3);
 			//sendDeleteRequest("test.pdf");
 		}
 	}
@@ -152,7 +157,7 @@ public class Peer {
 	private void initializeChunksAttributes() {
 		this.actualReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.desiredReplicationDegrees = new ConcurrentHashMap<String, Integer>();
-		this.chunksHosts = new ConcurrentHashMap<String, ArrayList<Integer>>();
+		this.chunksHosts = new ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>();
 	}
 
 	private void createBackup(String filename, int replication) throws FileNotFoundException, IOException {
@@ -220,7 +225,7 @@ public class Peer {
 
 			this.actualReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 			this.desiredReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
-			this.chunksHosts = (ConcurrentHashMap<String, ArrayList<Integer>>) serverStream.readObject();
+			this.chunksHosts = (ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>) serverStream.readObject();
 
 			serverStream.close();
 		} catch (IOException | ClassNotFoundException e) {
@@ -266,11 +271,11 @@ public class Peer {
 	public void storeChunkInfo(int senderID, String fileID, int chunkNr) {
 		String hashmapKey = chunkNr + "_" + fileID;
 
-		ArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
+		CopyOnWriteArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
 
 		// Check if is the first stored message of the chunk
 		if (chunkHosts == null) {
-			chunkHosts = new ArrayList<Integer>();
+			chunkHosts = new CopyOnWriteArrayList<Integer>();
 			chunkHosts.add(senderID);
 
 			this.chunksHosts.put(hashmapKey, chunkHosts);
@@ -286,7 +291,7 @@ public class Peer {
 	}
 
 	public void removeChunkInfo(String hashmapKey) {
-		ArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
+		CopyOnWriteArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
 
 		// Check if is the first stored message of the chunk
 		if (chunkHosts != null && chunkHosts.contains(this.serverID)) {
@@ -333,11 +338,15 @@ public class Peer {
 		return this.actualReplicationDegrees;
 	}
 
-	public ConcurrentHashMap<String, ArrayList<Integer>> getChunkHosts() {
+	public ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> getChunkHosts() {
 		return this.chunksHosts;
 	}
+	
+	public ConcurrentHashMap<String, byte[]> getRestoredChunks() {
+		return this.restoredChunks;
+	}
 
-	public Properties getChunksInfoProperties() {
-		return this.chunksInfo;
+	public ConcurrentHashMap<String, Boolean> getWaitRestoredChunks() {
+		return this.waitRestoredChunks;
 	}
 }

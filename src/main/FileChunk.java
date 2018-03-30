@@ -41,41 +41,20 @@ public class FileChunk implements Callable<Boolean> {
 		try {
 			result = checkStoredMessages();
 		} catch (InterruptedException | ExecutionException e) {
+			
 		}
 		
 		return result;
 	}
 
-	private boolean checkStoredMessages() throws InterruptedException, ExecutionException {
-		//Task that checks if the chunk has the desired replication degree
-		Callable<Boolean> isBackedUp = () -> {
-			String hashmapKey = this.number + "_" + this.fileID;
-			boolean backupDone = false;
-			
-			if(this.peer.getChunkHosts().get(hashmapKey) != null) {
-				int actualReplicationDegree = this.peer.getActualReplicationDegrees().get(hashmapKey);
-				
-				if(actualReplicationDegree >= this.replicationDegree) {					
-					backupDone = true;
-				} 	
-			} 
-			
-			//If the desired replication degree has not been fulfilled it sends again the putchunk request
-			if(!backupDone) {
-				byte [] packet = makePutChunkRequest();
-				this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
-			}
-			
-			return backupDone;
-		};
-		
+	private boolean checkStoredMessages() throws InterruptedException, ExecutionException {		
 		ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
 		boolean result = false;
-		int count = 0;
+		int attempts = 0;
 		int timeTask = 1;
 		
-		while(result == false && count < 5) {	
+		while(result == false && attempts < 5) {	
 			Future<Boolean> future = executor.schedule(isBackedUp, timeTask, TimeUnit.SECONDS);
 			
 			result = future.get();
@@ -83,13 +62,35 @@ public class FileChunk implements Callable<Boolean> {
 			//If the desired replication degree is not fulfilled, the time interval doubles
 			if(!result) {
 				timeTask = timeTask * 2;
-				count++;
+				attempts++;
 			} 
 		}
 		
 		executor.shutdownNow();
 		return result;
 	}
+	
+	//Task that checks if the chunk has the desired replication degree
+	Callable<Boolean> isBackedUp = () -> {
+		String hashmapKey = this.number + "_" + this.fileID;
+		boolean backupDone = false;
+		
+		if(this.peer.getChunkHosts().get(hashmapKey) != null) {
+			int actualReplicationDegree = this.peer.getActualReplicationDegrees().get(hashmapKey);
+			
+			if(actualReplicationDegree >= this.replicationDegree) {					
+				backupDone = true;
+			} 	
+		} 
+		
+		//If the desired replication degree has not been fulfilled it sends again the putchunk request
+		if(!backupDone) {
+			byte [] packet = makePutChunkRequest();
+			this.peer.sendReplyToMulticast(Peer.multicastChannel.MDB, packet);
+		}
+		
+		return backupDone;
+	};
 	
 	private byte[] makePutChunkRequest() {
 		String message = "PUTCHUNK "+ this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + this.fileID + " " + this.number +
