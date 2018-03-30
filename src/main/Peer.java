@@ -10,15 +10,15 @@ import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import protocols.Backup;
 
-public class Peer {
+public class Peer implements IRMI{
 
 	// Peer configurations
 	private String protocolVersion;
@@ -115,17 +115,23 @@ public class Peer {
 		if (!loadChunksInfo()) {
 			initializeChunksAttributes();
 		}
-
+		
 		// Connect to multicast channels
 		new Thread(new MulticastListenner(addressMC, portMC, this)).start();
 		new Thread(new MulticastListenner(addressMDB, portMDB, this)).start();
 		new Thread(new MulticastListenner(addressMDR, portMDR, this)).start();
 
 		// Client-Peer Communication Test
+		/*
 		if (this.serverID == 1 || this.serverID == 2) {
 			createBackup("bigbackup.txt", 3);
 			//sendDeleteRequest("test.pdf");
-		}
+		}*/
+		
+	}
+
+	public Peer() {
+		// TODO Auto-generated constructor stub
 	}
 
 	// Send delete message to MC multicast channel
@@ -349,4 +355,24 @@ public class Peer {
 	public ConcurrentHashMap<String, Boolean> getWaitRestoredChunks() {
 		return this.waitRestoredChunks;
 	}
+
+	@Override
+	public void backup(String filename, int replicationDegree)
+			throws RemoteException {
+		// TODO Auto-generated method stub
+		System.out.println("Chamei?");
+	}
+
+	@Override
+	public void delete(String filename) throws RemoteException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void restore(String filename) throws RemoteException {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

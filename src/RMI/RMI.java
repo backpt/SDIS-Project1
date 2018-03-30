@@ -1,15 +1,14 @@
 package RMI;
 
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 
 
-public interface RMI_Interface extends Remote
+public class RMI
 {
     
 	public static void main(String[] args)
-	{
+	{		
 		try
 		{
 			LocateRegistry.createRegistry(1099);
@@ -18,6 +17,7 @@ public interface RMI_Interface extends Remote
 		{
 			e.printStackTrace();
 		}
+		System.out.println("RMI running");
 		
 		while(true)
 		{
