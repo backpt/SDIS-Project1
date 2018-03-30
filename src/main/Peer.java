@@ -10,8 +10,8 @@ import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,7 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import protocols.Backup;
 import protocols.Restore;
 
-public class Peer {
+public class Peer implements IRMI{
 
 	// Peer configurations
 	private String protocolVersion;
@@ -128,10 +128,11 @@ public class Peer {
 			initializeChunksAttributes();
 		}
 		
+
 		this.receivedChunkMessages = new CopyOnWriteArrayList<String>();
 		this.restoredChunks = new ConcurrentHashMap<String, byte[]>();
 		this.waitRestoredChunks = new CopyOnWriteArrayList<String>();
-
+		
 		// Connect to multicast channels
 		new Thread(new MulticastListenner(addressMC, portMC, this)).start();
 		new Thread(new MulticastListenner(addressMDB, portMDB, this)).start();
@@ -160,6 +161,17 @@ public class Peer {
 			
 			restoreFile("05remoting.pdf");
 		}
+
+		/*
+		if (this.serverID == 1 || this.serverID == 2) {
+			createBackup("bigbackup.txt", 3);
+			//sendDeleteRequest("test.pdf");
+		}*/
+		
+	}
+
+	public Peer() {
+		// TODO Auto-generated constructor stub
 	}
 
 	// Send delete message to MC multicast channel
@@ -391,4 +403,24 @@ public class Peer {
 	public CopyOnWriteArrayList<String> getReceivedChunkMessages() {
 		return this.receivedChunkMessages;
 	}
+
+	@Override
+	public void backup(String filename, int replicationDegree)
+			throws RemoteException {
+		// TODO Auto-generated method stub
+		System.out.println("Chamei?");
+	}
+
+	@Override
+	public void delete(String filename) throws RemoteException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void restore(String filename) throws RemoteException {
+		// TODO Auto-generated method stub
+		
+	}
+
 }
