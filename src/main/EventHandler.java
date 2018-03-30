@@ -10,8 +10,11 @@ import java.net.DatagramPacket;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -69,6 +72,10 @@ public class EventHandler implements Runnable {
 		if (!header[1].equals(this.peer.getProtocolVersion())) {
 			return;
 		}
+		
+		String hashmapKey = "";
+		Random random;
+		int waitTime;
 
 		switch (header[0]) {
 
@@ -79,7 +86,7 @@ public class EventHandler implements Runnable {
 			}
 			
 			//Save desired replication degree of chunk file
-			String hashmapKey = header[4] + "_" + header[3];
+			hashmapKey = header[4] + "_" + header[3];
 			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
 			
 			//Check if I already stored this chunk
@@ -89,8 +96,8 @@ public class EventHandler implements Runnable {
 				return;
 			}
 			
-			Random random = new Random();
-	        int waitTime = random.nextInt(400);
+			random = new Random();
+	        waitTime = random.nextInt(400);
 	        
 	        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 			
@@ -111,9 +118,58 @@ public class EventHandler implements Runnable {
 			break;
 
 		case "GETCHUNK":
+			if (header.length != 5) {
+				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
+				return;
+			}
+			
+			hashmapKey = header[4] + "_" + header[3];
+			
+			//Check if I have stored this chunk
+			if(!this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
+				return;
+			}
+			
+			random = new Random();
+	        waitTime = random.nextInt(400);
+	        
+	        ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
+			
+	        Future<Boolean> future = scheduledPool.schedule(receivedChunkMsg, waitTime, TimeUnit.MILLISECONDS);
+	        boolean chunkAlreadySent = false;
+	        try {
+	        	chunkAlreadySent = future.get();
+			} catch (InterruptedException | ExecutionException e) {}
+	        
+			if(!chunkAlreadySent) {
+				byte [] packet = makeChunkMessage(header[3], header[4]);
+				try {
+					this.peer.sendReplyToMulticast(Peer.multicastChannel.MDR, packet);
+				} catch (IOException e) {
+					System.out.println("Error sending chunk message");
+				}
+			}
+			
 			break;
 
 		case "CHUNK":
+			if (header.length != 5) {
+				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
+				return;
+			}
+			
+			hashmapKey = header[4] + "_" + header[3];
+			//Stores that received the chunk message
+			if(this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
+				this.peer.getReceivedChunkMessages().add(hashmapKey);
+	    	}
+			
+			//Check if I am waiting for this chunk
+			if(this.peer.getWaitRestoredChunks().contains(hashmapKey)) {
+				this.peer.getWaitRestoredChunks().remove(hashmapKey);
+				this.peer.getRestoredChunks().put(hashmapKey, this.body);
+			}
+			
 			break;
 
 		case "DELETE":
@@ -133,6 +189,14 @@ public class EventHandler implements Runnable {
 	
 	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
 		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
+				+ " " + chunkNr + " ";
+		message = message + EventHandler.CRLF + EventHandler.CRLF;
+		
+		return message.getBytes();
+	}
+	
+	private byte[] makeChunkMessage(String fileID, String chunkNr) {
+		String message = "CHUNK "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
 				+ " " + chunkNr + " ";
 		message = message + EventHandler.CRLF + EventHandler.CRLF;
 		
@@ -160,5 +224,16 @@ public class EventHandler implements Runnable {
 		} catch (IOException e) {
 			System.out.println("Error sending message to multicast");
 		}
+	};
+	
+	Callable<Boolean> receivedChunkMsg = () -> {
+    	boolean result = false;
+    	String key = this.header[4] + "_" + this.header[3];
+    	
+    	if(this.peer.getReceivedChunkMessages().contains(key)) {
+    		result = true;
+    	}
+    	
+    	return result;
 	};
 }

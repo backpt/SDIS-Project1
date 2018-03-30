@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import protocols.Backup;
+import protocols.Restore;
 
 public class Peer {
 
@@ -83,9 +84,20 @@ public class Peer {
 	 */
 	private ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> chunksHosts;
 	
+	/**
+	 * Stores the restored chunks received - <ChunkNr_FileID><File Bytes>
+	 */
 	private ConcurrentHashMap<String, byte[]> restoredChunks;
 	
-	private ConcurrentHashMap<String, Boolean> waitRestoredChunks;
+	/**
+	 * Stores the chunks file that are waiting for - <ChunkNr_FileID>
+	 */
+	private CopyOnWriteArrayList<String> waitRestoredChunks;
+	
+	/**
+	 * Stores the messages chunks that has received - <ChunkNr_FileID>
+	 */
+	private CopyOnWriteArrayList<String> receivedChunkMessages;
 
 	public Peer(String protocol, int id, String ap, InetAddress addressMC, int portMC, InetAddress addressMDB,
 			int portMDB, InetAddress addressMDR, int portMDR) throws IOException {
@@ -115,6 +127,10 @@ public class Peer {
 		if (!loadChunksInfo()) {
 			initializeChunksAttributes();
 		}
+		
+		this.receivedChunkMessages = new CopyOnWriteArrayList<String>();
+		this.restoredChunks = new ConcurrentHashMap<String, byte[]>();
+		this.waitRestoredChunks = new CopyOnWriteArrayList<String>();
 
 		// Connect to multicast channels
 		new Thread(new MulticastListenner(addressMC, portMC, this)).start();
@@ -122,9 +138,27 @@ public class Peer {
 		new Thread(new MulticastListenner(addressMDR, portMDR, this)).start();
 
 		// Client-Peer Communication Test
-		if (this.serverID == 1 || this.serverID == 2) {
-			createBackup("bigbackup.txt", 3);
-			//sendDeleteRequest("test.pdf");
+		if (this.serverID == 1) {
+			//createBackup("05remoting.pdf", 3);
+			//sendDeleteRequest("05remoting.pdf");
+			/*this.filesIdentifiers.forEach( (key, value) -> {
+				System.out.println(key + " - " + value);
+			});
+			
+			System.out.println("Perceived Degree");
+			this.actualReplicationDegrees.forEach( (key, value) -> {
+				if(key.endsWith("6a8dd5f744deace460c5a77407e8e78b5b6b5e693d7d1ba9ecd500477033a586"))
+					System.out.println(key + " - " + value);
+			});
+			
+			System.out.println("Hosts");
+			
+			this.chunksHosts.forEach( (key, value) -> {
+				if(key.endsWith("6a8dd5f744deace460c5a77407e8e78b5b6b5e693d7d1ba9ecd500477033a586"))
+					System.out.println(key + " - " + value);
+			});*/
+			
+			restoreFile("05remoting.pdf");
 		}
 	}
 
@@ -146,6 +180,10 @@ public class Peer {
 		} else {
 			System.out.println("Error deleting the file, because it wasn't backed up by me.");
 		}
+	}
+	
+	private void restoreFile(String filename) {
+		new Thread(new Restore(filename, this)).start();
 	}
 
 	private void initializeFilesAttributes() {
@@ -346,7 +384,11 @@ public class Peer {
 		return this.restoredChunks;
 	}
 
-	public ConcurrentHashMap<String, Boolean> getWaitRestoredChunks() {
+	public CopyOnWriteArrayList<String> getWaitRestoredChunks() {
 		return this.waitRestoredChunks;
+	}
+	
+	public CopyOnWriteArrayList<String> getReceivedChunkMessages() {
+		return this.receivedChunkMessages;
 	}
 }

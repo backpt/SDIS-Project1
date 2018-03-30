@@ -15,10 +15,11 @@ import main.EventHandler;
 import main.FileIdentifier;
 import main.Peer;
 
-public class Restore implements Callable<Boolean> {
+public class Restore implements Runnable {
 
 	private String fileID;
 	private String filePath;
+	private String newFilePath;
 	private Peer peer;
 	private final int CHUNK_MAX_SIZE = 64000;
 	private int actualChunk;
@@ -27,11 +28,13 @@ public class Restore implements Callable<Boolean> {
 	public Restore(String filename, Peer peer) {
 		this.fileChunks = new HashMap<Integer, byte[]>();
 		this.filePath = Peer.PEERS_FOLDER + "/" + Peer.SHARED_FOLDER + "/" + filename;
+		this.peer = peer;
+		this.newFilePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.peer.getID() + "/" + Peer.FILES_INFO + "/" + filename;
 		this.fileID = new FileIdentifier(this.filePath).toString();
 	}
 
 	@Override
-	public Boolean call() {
+	public void run() {
 		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
 
 		boolean restored = false;
@@ -44,7 +47,7 @@ public class Restore implements Callable<Boolean> {
 			// After 3 attempts the restore protocol stops
 			if (attempts == 3) {
 				System.out.println("File restore finished without success.");
-				return false;
+				return;
 			}
 
 			// It only sends the getchunk message one time
@@ -53,7 +56,7 @@ public class Restore implements Callable<Boolean> {
 
 				try {
 					this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
-					this.peer.getWaitRestoredChunks().put(this.actualChunk + "_" + this.fileID, true);
+					this.peer.getWaitRestoredChunks().add(this.actualChunk + "_" + this.fileID);
 				} catch (IOException e) {
 					System.out.println("Error sending getchunk message");
 				}
@@ -66,6 +69,7 @@ public class Restore implements Callable<Boolean> {
 			try {
 				result = future.get();
 			} catch (InterruptedException | ExecutionException e) {
+				System.out.println("Error sending getchunk message");
 			}
 
 			// If the chunk restored has not yet arrived, the time interval doubles to check
@@ -90,15 +94,15 @@ public class Restore implements Callable<Boolean> {
 		if (restored) {
 			restoreFile();
 		}
-
-		return true;
 	}
-
+	
 	private void restoreFile() {
-		File file = new File(this.filePath);
+		File file = new File(this.newFilePath);
+		
+		System.out.println(this.fileChunks.size());
 
 		try {
-			FileOutputStream outputStream = new FileOutputStream(file);
+			FileOutputStream outputStream = new FileOutputStream(this.newFilePath);
 			
 			this.fileChunks.forEach( (key, value) -> {
 				try {

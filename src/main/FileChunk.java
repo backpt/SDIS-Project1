@@ -41,7 +41,7 @@ public class FileChunk implements Callable<Boolean> {
 		try {
 			result = checkStoredMessages();
 		} catch (InterruptedException | ExecutionException e) {
-			
+			System.out.println(".");
 		}
 		
 		return result;
