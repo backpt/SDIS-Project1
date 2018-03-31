@@ -159,7 +159,7 @@ public class Peer implements IRMI{
 					System.out.println(key + " - " + value);
 			});*/
 			
-			restoreFile("05remoting.pdf");
+			//restoreFile("05remoting.pdf");
 		}
 
 		/*
@@ -408,19 +408,28 @@ public class Peer implements IRMI{
 	public void backup(String filename, int replicationDegree)
 			throws RemoteException {
 		// TODO Auto-generated method stub
-		System.out.println("Chamei?");
+		try {
+			createBackup(filename, replicationDegree);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	public void delete(String filename) throws RemoteException {
 		// TODO Auto-generated method stub
-		
+		sendDeleteRequest(filename);
+
 	}
 
 	@Override
 	public void restore(String filename) throws RemoteException {
 		// TODO Auto-generated method stub
-		
+		restoreFile(filename);
 	}
 
 }

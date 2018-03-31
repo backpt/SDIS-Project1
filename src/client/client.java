@@ -23,7 +23,7 @@ public class Client {
         operation="BACKUP";
         operands= new ArrayList<String>();
         operands.add("bigbackup.txt");
-        operands.add("3");
+        operands.add("1");
         /*
         try {
             String backupname = "Backup";
