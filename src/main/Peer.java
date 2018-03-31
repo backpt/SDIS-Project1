@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import protocols.Backup;
 import protocols.Restore;
 
-public class Peer implements IRMI{
+public class Peer implements IRMI {
 
 	// Peer configurations
 	private String protocolVersion;
@@ -140,7 +141,7 @@ public class Peer implements IRMI{
 
 		// Client-Peer Communication Test
 		if (this.serverID == 1) {
-			//createBackup("05remoting.pdf", 3);
+			createBackup("05remoting.pdf", 3);
 			//sendDeleteRequest("05remoting.pdf");
 			/*this.filesIdentifiers.forEach( (key, value) -> {
 				System.out.println(key + " - " + value);
@@ -158,8 +159,8 @@ public class Peer implements IRMI{
 				if(key.endsWith("6a8dd5f744deace460c5a77407e8e78b5b6b5e693d7d1ba9ecd500477033a586"))
 					System.out.println(key + " - " + value);
 			});*/
-			
-			restoreFile("05remoting.pdf");
+
+			//restoreFile("05remoting.pdf");
 		}
 
 		/*
@@ -189,6 +190,9 @@ public class Peer implements IRMI{
 			}
 
 			this.backupState.replace(fileID, false);
+			removeFileInfo(fileID);		
+			saveChunksInfoFile();
+			saveFilesInfoFile();
 		} else {
 			System.out.println("Error deleting the file, because it wasn't backed up by me.");
 		}
@@ -339,6 +343,28 @@ public class Peer implements IRMI{
 			}
 		}
 	}
+	
+	private void removeFileInfo(String fileID) {
+		Iterator<String> it = this.chunksHosts.keySet().iterator();
+		 
+		while (it.hasNext()) {
+			String key = it.next();
+
+			if (key.endsWith(fileID)) {
+				it.remove();
+			}
+		}
+		
+		Iterator<String> it2 = this.actualReplicationDegrees.keySet().iterator();
+		 
+		while (it2.hasNext()) {
+			String key = it2.next();
+
+			if (key.endsWith(fileID)) {
+				it2.remove();
+			}
+		}
+	}
 
 	public void removeChunkInfo(String hashmapKey) {
 		CopyOnWriteArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
@@ -404,6 +430,7 @@ public class Peer implements IRMI{
 		return this.receivedChunkMessages;
 	}
 
+	
 	@Override
 	public void backup(String filename, int replicationDegree)
 			throws RemoteException {

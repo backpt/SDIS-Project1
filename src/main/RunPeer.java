@@ -11,8 +11,8 @@ public class RunPeer {
 	
 	public static void main(String[] args) throws IOException {
 		//Initialization for now (future: all with arguments)
-		//int serverID = Integer.parseInt(args[0]);
-		int serverID = 1;
+		int serverID = Integer.parseInt(args[0]);
+		//int serverID = 1;
 		
 		InetAddress addressMC = InetAddress.getByName("224.0.0.2");
 		InetAddress addressMDB = InetAddress.getByName("224.0.0.3");

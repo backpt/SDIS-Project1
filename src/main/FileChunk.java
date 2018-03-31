@@ -93,7 +93,7 @@ public class FileChunk implements Callable<Boolean> {
 	};
 	
 	private byte[] makePutChunkRequest() {
-		String message = "PUTCHUNK "+ this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + this.fileID + " " + this.number +
+		String message = "PUTCHUNK" + " " + this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + this.fileID + " " + this.number +
 				" " + this.replicationDegree + " ";
 		message = message + EventHandler.CRLF + EventHandler.CRLF;
 		

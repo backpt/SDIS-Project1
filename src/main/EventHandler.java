@@ -36,8 +36,12 @@ public class EventHandler implements Runnable {
 	}
 
 	public void splitMessage(DatagramPacket packet) {
-		ByteArrayInputStream input = new ByteArrayInputStream(packet.getData());
+		//To remove empty spaces of the packet
+		byte [] message = new byte[packet.getLength()];
+		System.arraycopy(packet.getData(), packet.getOffset(), message, 0, packet.getLength());
 
+		ByteArrayInputStream input = new ByteArrayInputStream(message);
+		
 		byte character = 0;
 		String allHeader = "";
 
@@ -57,7 +61,7 @@ public class EventHandler implements Runnable {
 		}
 
 		// Length + 2 because of the extra CRLF
-		this.body = Arrays.copyOfRange(packet.getData(), allHeader.length() + 2, packet.getData().length);
+		this.body = Arrays.copyOfRange(message, allHeader.length() + 2, message.length);
 		this.header = allHeader.trim().split(" ");
 	}
 

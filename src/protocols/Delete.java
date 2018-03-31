@@ -26,6 +26,7 @@ public class Delete implements Runnable {
 		}
 		
 		this.peer.saveChunksInfoFile();
+		System.out.println("Terminou delete");
 	}
 
 	private void deleteChunks(File[] chunks) {

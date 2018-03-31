@@ -22,7 +22,7 @@ public class MulticastListenner implements Runnable {
 	@Override
 	public void run() {		
 		while(true) {
-			byte[] requestPacket = new byte[256];
+			byte[] requestPacket = new byte[64500];
 			DatagramPacket packet = new DatagramPacket(requestPacket, requestPacket.length);
 
 			try {
@@ -30,7 +30,6 @@ public class MulticastListenner implements Runnable {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			String message = new String(packet.getData());
 
 			new Thread(new EventHandler(packet, this.peer)).start();
 		}

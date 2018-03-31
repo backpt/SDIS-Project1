@@ -123,6 +123,8 @@ public class Restore implements Runnable {
 		boolean restoredDone = false;
 
 		if (this.peer.getRestoredChunks().get(hashmapKey) != null) {
+			System.out.println("Tenho a chunk");
+			System.out.println(this.peer.getRestoredChunks().get(hashmapKey));
 			restoredDone = true;
 		}
 
