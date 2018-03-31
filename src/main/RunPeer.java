@@ -11,6 +11,7 @@ public class RunPeer {
 	
 	public static void main(String[] args) throws IOException {
 		//Initialization for now (future: all with arguments)
+
 		int serverID = Integer.parseInt(args[0]);
 		//int serverID = 1;
 		

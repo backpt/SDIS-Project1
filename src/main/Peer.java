@@ -143,31 +143,8 @@ public class Peer implements IRMI {
 		if (this.serverID == 1) {
 			createBackup("05remoting.pdf", 3);
 			//sendDeleteRequest("05remoting.pdf");
-			/*this.filesIdentifiers.forEach( (key, value) -> {
-				System.out.println(key + " - " + value);
-			});
-			
-			System.out.println("Perceived Degree");
-			this.actualReplicationDegrees.forEach( (key, value) -> {
-				if(key.endsWith("6a8dd5f744deace460c5a77407e8e78b5b6b5e693d7d1ba9ecd500477033a586"))
-					System.out.println(key + " - " + value);
-			});
-			
-			System.out.println("Hosts");
-			
-			this.chunksHosts.forEach( (key, value) -> {
-				if(key.endsWith("6a8dd5f744deace460c5a77407e8e78b5b6b5e693d7d1ba9ecd500477033a586"))
-					System.out.println(key + " - " + value);
-			});*/
-
 			//restoreFile("05remoting.pdf");
 		}
-
-		/*
-		if (this.serverID == 1 || this.serverID == 2) {
-			createBackup("bigbackup.txt", 3);
-			//sendDeleteRequest("test.pdf");
-		}*/
 		
 	}
 
@@ -435,19 +412,28 @@ public class Peer implements IRMI {
 	public void backup(String filename, int replicationDegree)
 			throws RemoteException {
 		// TODO Auto-generated method stub
-		System.out.println("Chamei?");
+		try {
+			createBackup(filename, replicationDegree);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	public void delete(String filename) throws RemoteException {
 		// TODO Auto-generated method stub
-		
+		sendDeleteRequest(filename);
+
 	}
 
 	@Override
 	public void restore(String filename) throws RemoteException {
 		// TODO Auto-generated method stub
-		
+		restoreFile(filename);
 	}
 
 }

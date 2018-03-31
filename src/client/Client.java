@@ -16,14 +16,14 @@ public class Client {
 
     public static void main(String args[]) {
     	
-        if (System.getSecurityManager() == null) {
+       /* if (System.getSecurityManager() == null) {
             System.setSecurityManager(new SecurityManager());
-        }
+        }*/
         access_rmi= "rmi1";
         operation="BACKUP";
         operands= new ArrayList<String>();
         operands.add("bigbackup.txt");
-        operands.add("3");
+        operands.add("1");
         /*
         try {
             String backupname = "Backup";
