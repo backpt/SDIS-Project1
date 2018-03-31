@@ -130,7 +130,7 @@ public class EventHandler implements Runnable {
 			hashmapKey = header[4] + "_" + header[3];
 			
 			//Check if I have stored this chunk
-			if(!this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
+			if(this.peer.getChunkHosts().get(hashmapKey) != null && !this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
 				return;
 			}
 			
@@ -145,7 +145,7 @@ public class EventHandler implements Runnable {
 	        	chunkAlreadySent = future.get();
 			} catch (InterruptedException | ExecutionException e) {}
 	        
-			if(!chunkAlreadySent) {
+			if(!chunkAlreadySent) {				
 				byte [] packet = makeChunkMessage(header[3], header[4]);
 				try {
 					this.peer.sendReplyToMulticast(Peer.multicastChannel.MDR, packet);
@@ -163,6 +163,7 @@ public class EventHandler implements Runnable {
 			}
 			
 			hashmapKey = header[4] + "_" + header[3];
+			
 			//Stores that received the chunk message
 			if(this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
 				this.peer.getReceivedChunkMessages().add(hashmapKey);
@@ -170,7 +171,7 @@ public class EventHandler implements Runnable {
 			
 			//Check if I am waiting for this chunk
 			if(this.peer.getWaitRestoredChunks().contains(hashmapKey)) {
-				this.peer.getWaitRestoredChunks().remove(hashmapKey);
+				this.peer.getWaitRestoredChunks().remove(hashmapKey);				
 				this.peer.getRestoredChunks().put(hashmapKey, this.body);
 			}
 			
@@ -200,11 +201,18 @@ public class EventHandler implements Runnable {
 	}
 	
 	private byte[] makeChunkMessage(String fileID, String chunkNr) {
+		byte [] chunk = this.peer.getChunk(fileID, chunkNr);
+		
 		String message = "CHUNK "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
 				+ " " + chunkNr + " ";
-		message = message + EventHandler.CRLF + EventHandler.CRLF;
+		message = message + EventHandler.CRLF + EventHandler.CRLF;	
 		
-		return message.getBytes();
+		byte [] header = message.getBytes();
+		byte[] packet = new byte[header.length + chunk.length];
+		System.arraycopy(header, 0, packet, 0, header.length);
+		System.arraycopy(chunk, 0, packet, header.length, chunk.length);
+		
+		return packet;
 	}
 
 	Runnable storeChunk = () -> {

@@ -87,7 +87,10 @@ public class Backup implements Runnable {
 			int size = 0;
 			
 			while ((size = bis.read(buffer)) > 0) {
-				Future<Boolean> result = scheduledPool.submit(new FileChunk(this.fileID, chunkNr, buffer, this.replicationDegree, this.peer));
+				byte[] content = new byte[size];
+				System.arraycopy(buffer, 0, content, 0, size);				
+				
+				Future<Boolean> result = scheduledPool.submit(new FileChunk(this.fileID, chunkNr, content, this.replicationDegree, this.peer));
 				threadResults.add(result);
 
 				this.peer.getDesiredReplicationDegrees().put(chunkNr + "_" + this.fileID, this.replicationDegree);
@@ -96,6 +99,7 @@ public class Backup implements Runnable {
 			
 			//Add last chunk with zero length
 			if(needChunkZero) {
+				System.out.println("Entrei aqui");
 				byte[] empty = new byte[0];
 				
 				Future<Boolean> result = scheduledPool.submit(new FileChunk(this.fileID, chunkNr, empty, this.replicationDegree, this.peer));

@@ -15,30 +15,12 @@ public class Client {
 	
 
     public static void main(String args[]) {
-    	
-       /* if (System.getSecurityManager() == null) {
-            System.setSecurityManager(new SecurityManager());
-        }*/
         access_rmi= "rmi1";
-        operation="BACKUP";
+        operation="RESTORE";
         operands= new ArrayList<String>();
-        operands.add("bigbackup.txt");
-        operands.add("1");
-        /*
-        try {
-            String backupname = "Backup";
-            Registry registry = LocateRegistry.getRegistry(args[0]);
-            Backup backup = (Backup) registry.lookup(backupname);
-        } catch (Exception e) {
-            System.err.println("Backup exception:");
-            e.printStackTrace();
-        }
-        */
-        
-        /*
-        if(!initArgs(args))
-			return;
-		*/
+        operands.add("05remoting.pdf");
+        //operands.add("1");
+
 		try
 		{
 			Registry registry = LocateRegistry.getRegistry("localhost");
@@ -55,7 +37,6 @@ public class Client {
 					e.printStackTrace();
 				}
 			}
-			/*	
 			else if(operation.equals("DELETE"))
 			{
 				try
@@ -80,7 +61,6 @@ public class Client {
 					e.printStackTrace();
 				}
 			}
-			*/
 			else{
 				System.err.println("Unknown command");
 			}

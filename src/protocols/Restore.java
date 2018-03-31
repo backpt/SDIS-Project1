@@ -29,7 +29,7 @@ public class Restore implements Runnable {
 		this.fileChunks = new HashMap<Integer, byte[]>();
 		this.filePath = Peer.PEERS_FOLDER + "/" + Peer.SHARED_FOLDER + "/" + filename;
 		this.peer = peer;
-		this.newFilePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.peer.getID() + "/" + Peer.FILES_INFO + "/" + filename;
+		this.newFilePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.peer.getID() + "/" + Peer.FILES_FOLDER + "/" + filename;
 		this.fileID = new FileIdentifier(this.filePath).toString();
 	}
 
@@ -38,7 +38,7 @@ public class Restore implements Runnable {
 		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
 
 		boolean restored = false;
-		int timeTask = 1;
+		int timeTask = 0;
 		this.actualChunk = 0;
 		int attempts = 0;
 
@@ -72,10 +72,9 @@ public class Restore implements Runnable {
 				System.out.println("Error sending getchunk message");
 			}
 
-			// If the chunk restored has not yet arrived, the time interval doubles to check
-			// again
+			// If the chunk restored has not yet arrived, the time interval increases 1 second
 			if (!result) {
-				timeTask = timeTask * 2;
+				timeTask = timeTask + 1;
 				attempts++;
 			} else {
 				// Check if it was the last chunk
@@ -86,6 +85,7 @@ public class Restore implements Runnable {
 					restored = true;
 				} else {
 					this.actualChunk++;
+					timeTask = 0;
 					attempts = 0;
 				}
 			}
@@ -96,10 +96,8 @@ public class Restore implements Runnable {
 		}
 	}
 	
-	private void restoreFile() {
-		File file = new File(this.newFilePath);
-		
-		System.out.println(this.fileChunks.size());
+	private void restoreFile() {		
+		System.out.println("Restore em: "+this.newFilePath);
 
 		try {
 			FileOutputStream outputStream = new FileOutputStream(this.newFilePath);
@@ -123,8 +121,6 @@ public class Restore implements Runnable {
 		boolean restoredDone = false;
 
 		if (this.peer.getRestoredChunks().get(hashmapKey) != null) {
-			System.out.println("Tenho a chunk");
-			System.out.println(this.peer.getRestoredChunks().get(hashmapKey));
 			restoredDone = true;
 		}
 

@@ -84,17 +84,17 @@ public class Peer implements IRMI {
 	 * Stores who has stored the chunk - <ChunkNr_FileID><List of Peer IDs>
 	 */
 	private ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> chunksHosts;
-	
+
 	/**
 	 * Stores the restored chunks received - <ChunkNr_FileID><File Bytes>
 	 */
 	private ConcurrentHashMap<String, byte[]> restoredChunks;
-	
+
 	/**
 	 * Stores the chunks file that are waiting for - <ChunkNr_FileID>
 	 */
 	private CopyOnWriteArrayList<String> waitRestoredChunks;
-	
+
 	/**
 	 * Stores the messages chunks that has received - <ChunkNr_FileID>
 	 */
@@ -128,24 +128,23 @@ public class Peer implements IRMI {
 		if (!loadChunksInfo()) {
 			initializeChunksAttributes();
 		}
-		
 
 		this.receivedChunkMessages = new CopyOnWriteArrayList<String>();
 		this.restoredChunks = new ConcurrentHashMap<String, byte[]>();
 		this.waitRestoredChunks = new CopyOnWriteArrayList<String>();
-		
+
 		// Connect to multicast channels
 		new Thread(new MulticastListenner(addressMC, portMC, this)).start();
 		new Thread(new MulticastListenner(addressMDB, portMDB, this)).start();
 		new Thread(new MulticastListenner(addressMDR, portMDR, this)).start();
 
 		// Client-Peer Communication Test
-		if (this.serverID == 1) {
-			createBackup("05remoting.pdf", 3);
-			//sendDeleteRequest("05remoting.pdf");
-			//restoreFile("05remoting.pdf");
-		}
-		
+		/*if (this.serverID == 1) {
+			// createBackup("05remoting.pdf", 1);
+			// sendDeleteRequest("05remoting.pdf");
+			restoreFile("05remoting.pdf");
+		}*/
+
 	}
 
 	public Peer() {
@@ -167,14 +166,14 @@ public class Peer implements IRMI {
 			}
 
 			this.backupState.replace(fileID, false);
-			removeFileInfo(fileID);		
+			removeFileInfo(fileID);
 			saveChunksInfoFile();
 			saveFilesInfoFile();
 		} else {
 			System.out.println("Error deleting the file, because it wasn't backed up by me.");
 		}
 	}
-	
+
 	private void restoreFile(String filename) {
 		new Thread(new Restore(filename, this)).start();
 	}
@@ -320,10 +319,10 @@ public class Peer implements IRMI {
 			}
 		}
 	}
-	
+
 	private void removeFileInfo(String fileID) {
 		Iterator<String> it = this.chunksHosts.keySet().iterator();
-		 
+
 		while (it.hasNext()) {
 			String key = it.next();
 
@@ -331,9 +330,9 @@ public class Peer implements IRMI {
 				it.remove();
 			}
 		}
-		
+
 		Iterator<String> it2 = this.actualReplicationDegrees.keySet().iterator();
-		 
+
 		while (it2.hasNext()) {
 			String key = it2.next();
 
@@ -394,7 +393,7 @@ public class Peer implements IRMI {
 	public ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>> getChunkHosts() {
 		return this.chunksHosts;
 	}
-	
+
 	public ConcurrentHashMap<String, byte[]> getRestoredChunks() {
 		return this.restoredChunks;
 	}
@@ -402,37 +401,48 @@ public class Peer implements IRMI {
 	public CopyOnWriteArrayList<String> getWaitRestoredChunks() {
 		return this.waitRestoredChunks;
 	}
-	
+
 	public CopyOnWriteArrayList<String> getReceivedChunkMessages() {
 		return this.receivedChunkMessages;
 	}
 
-	
+	public byte[] getChunk(String fileID, String chunkNr) {
+		File file = new File(Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.CHUNKS_FOLDER + "/"
+				+ chunkNr + "_" + fileID);
+
+		byte[] chunkBytes = new byte[(int) file.length()];
+
+		FileInputStream fis;
+		try {
+			fis = new FileInputStream(file);
+			fis.read(chunkBytes);
+			fis.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return chunkBytes;
+	}
+
 	@Override
-	public void backup(String filename, int replicationDegree)
-			throws RemoteException {
-		// TODO Auto-generated method stub
+	public void backup(String filename, int replicationDegree) throws RemoteException {
 		try {
 			createBackup(filename, replicationDegree);
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
 	@Override
 	public void delete(String filename) throws RemoteException {
-		// TODO Auto-generated method stub
 		sendDeleteRequest(filename);
-
 	}
 
 	@Override
 	public void restore(String filename) throws RemoteException {
-		// TODO Auto-generated method stub
+		System.out.println("[SERVER "+this.serverID+"] Starting restore...");
 		restoreFile(filename);
 	}
 
