@@ -1,3 +1,4 @@
-#xterm -e "cd bin && java rmi.RMI " 2> /dev/null 
+#!/bin/bash
 
-xterm -e "cd bin && rmiregistry " 2> /dev/null
+#Run RMI Connection
+cd bin && java RMI.RMI
