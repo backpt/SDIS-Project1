@@ -1,13 +1,9 @@
 package main;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -18,7 +14,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import protocols.Backup;
 import protocols.Delete;
 
 public class EventHandler implements Runnable {
@@ -92,8 +87,9 @@ public class EventHandler implements Runnable {
 			// Save desired replication degree of chunk file
 			hashmapKey = header[4] + "_" + header[3];
 			
-			if(!this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
-				this.peer.getReceivedChunkMessages().add(hashmapKey);
+			// Stores that received the putchunk message - For reclaim protocol
+			if (!this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
+				this.peer.getReceivedPutChunkMessages().add(hashmapKey);
 			}
 			
 			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
@@ -140,12 +136,7 @@ public class EventHandler implements Runnable {
 
 			hashmapKey = header[4] + "_" + header[3];
 
-			// Stores that received the putchunk message
-			if (!this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
-				this.peer.getReceivedPutChunkMessages().add(hashmapKey);
-			}
-
-			// Check if I have stored this chunk
+			//Ignore If I don't have the chunk stored
 			if (this.peer.getChunkHosts().get(hashmapKey) != null
 					&& !this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
 				return;
@@ -182,7 +173,7 @@ public class EventHandler implements Runnable {
 
 			hashmapKey = header[4] + "_" + header[3];
 
-			// Stores that received the chunk message
+			// Stores that received the chunk message - For restore protocol
 			if (!this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
 				this.peer.getReceivedChunkMessages().add(hashmapKey);
 			}
@@ -305,10 +296,13 @@ public class EventHandler implements Runnable {
 		// Save chunks information
 		this.peer.getChunksStoredSize().put(this.header[4] + "_" + this.header[3], this.body.length);
 		this.peer.storeChunkInfo(this.peer.getID(), this.header[3], Integer.parseInt(this.header[4]));
-		this.peer.saveChunksInfoFile();
-
+		
 		// Update disk usage
 		this.peer.setDiskUsed(this.peer.getDiskUsed() + this.body.length);
+		
+		//Save non volatile memory
+		this.peer.saveChunksInfoFile();
+		this.peer.saveFilesInfoFile();
 
 		// Send message STORED
 		byte[] packet = makeStoreChunkReply(this.header[3], this.header[4]);

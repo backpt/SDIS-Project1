@@ -67,7 +67,9 @@ public class Client {
 					
 				case "STATE":
 					try {
-						rmi.state();
+						System.out.println("State of Peer "+access_rmi+":");
+						System.out.println(rmi.state());
+						//rmi.state();
 					} catch (Exception e) {
 						System.err.println("State exception:");
 						e.printStackTrace();
@@ -90,17 +92,19 @@ public class Client {
 		operation = args[1];
 		operands = new ArrayList<String>();
 
-		if (args.length < 3 || args.length > 4) {
+		if (args.length < 2 || args.length > 4) {
 			System.out.println("Invalid usage, wrong number of args");
 			return false;
 		}
 
-		if (args.length == 3 && operation.equals("DELETE") || operation.equals("RESTORE")) {
+		if (args.length == 3 && operation.equals("DELETE") || operation.equals("RESTORE") || operation.equals("RECLAIM")) {
 			operands.add(args[2]);
 			return true;
 		} else if (args.length == 4 && operation.equals("BACKUP")) {
 			operands.add(args[2]);
 			operands.add(args[3]);
+			return true;
+		} else if (args.length == 2 && operation.equals("STATE")){
 			return true;
 		} else {
 			System.out.println("Invalid usage");

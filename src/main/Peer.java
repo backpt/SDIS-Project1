@@ -2,7 +2,6 @@ package main;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -10,10 +9,8 @@ import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -26,9 +23,6 @@ public class Peer implements IRMI {
 	// Peer configurations
 	private String protocolVersion;
 	private int serverID;
-	private InetAddress address;
-	private int port;
-	private Properties chunksInfo;
 
 	// Multicast configurations
 	private InetAddress addressMC;
@@ -109,14 +103,14 @@ public class Peer implements IRMI {
 	/**
 	 * Disk space to store chunks
 	 */
-	private long diskSpace;
+	private long diskMaxSpace;
 	
 	/**
 	 * Disk space used to store chunks
 	 */
 	private long diskUsed;
 
-	public Peer(String protocol, int id, String ap, InetAddress addressMC, int portMC, InetAddress addressMDB,
+	public Peer(String protocol, int id, InetAddress addressMC, int portMC, InetAddress addressMDB,
 			int portMDB, InetAddress addressMDR, int portMDR) throws IOException {
 		this.protocolVersion = protocol;
 		this.serverID = id;
@@ -138,7 +132,7 @@ public class Peer implements IRMI {
 		makeDirectory(chunksFiles);
 		makeDirectory(sharedFolder);
 		
-		this.diskSpace = 10000000; // 10 Mbs 
+		this.diskMaxSpace = 10000000; // 10 Mbs 
 
 		if (!loadFilesInfo()) {
 			initializeFilesAttributes();
@@ -179,6 +173,7 @@ public class Peer implements IRMI {
 			removeFileInfo(fileID);
 			saveChunksInfoFile();
 			saveFilesInfoFile();
+			System.out.println("Delete finished.");
 		} else {
 			System.out.println("Error deleting the file, because it wasn't backed up by me.");
 		}
@@ -238,6 +233,9 @@ public class Peer implements IRMI {
 
 			this.filesIdentifiers = (ConcurrentHashMap<String, String>) serverStream.readObject();
 			this.backupState = (ConcurrentHashMap<String, Boolean>) serverStream.readObject();
+			this.diskMaxSpace = (long) serverStream.readObject();
+			this.diskUsed = (long) serverStream.readObject();
+			
 
 			serverStream.close();
 		} catch (IOException | ClassNotFoundException e) {
@@ -259,7 +257,6 @@ public class Peer implements IRMI {
 			this.desiredReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 			this.chunksHosts = (ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>) serverStream.readObject();
 			this.chunksStoredSize = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
-			this.diskUsed = (long) serverStream.readObject();
 
 			serverStream.close();
 		} catch (IOException | ClassNotFoundException e) {
@@ -280,7 +277,6 @@ public class Peer implements IRMI {
 			serverStream.writeObject(this.desiredReplicationDegrees);
 			serverStream.writeObject(this.chunksHosts);
 			serverStream.writeObject(this.chunksStoredSize);
-			serverStream.writeObject(this.diskUsed);
 
 			serverStream.close();
 		} catch (IOException e) {
@@ -296,6 +292,8 @@ public class Peer implements IRMI {
 
 			serverStream.writeObject(this.filesIdentifiers);
 			serverStream.writeObject(this.backupState);
+			serverStream.writeObject(this.diskMaxSpace);
+			serverStream.writeObject(this.diskUsed);			
 
 			serverStream.close();
 		} catch (IOException e) {
@@ -434,7 +432,7 @@ public class Peer implements IRMI {
 	}
 	
 	public long getDiskSpace() {
-		return this.diskSpace;
+		return this.diskMaxSpace;
 	}
 	
 	public long getDiskUsed() {
@@ -443,6 +441,14 @@ public class Peer implements IRMI {
 	
 	public void setDiskUsed(long diskUsed) {
 		this.diskUsed = diskUsed;
+	}
+	
+	public void setDiskMaxSpace(long diskSpace) {
+		this.diskMaxSpace = diskSpace;
+	}
+	
+	public String getPeerState() {
+		return new PeerState(this).getState();
 	}
 
 	@Override
@@ -468,8 +474,10 @@ public class Peer implements IRMI {
 	}
 
 	@Override
-	public void state() throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting state protocol...");
+	public String state() throws RemoteException {
+		System.out.println("[SERVER "+this.serverID+"] Starting state feature...");
+		System.out.println("State returned.");
+		return this.getPeerState();
 	}
 
 	@Override

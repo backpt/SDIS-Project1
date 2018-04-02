@@ -11,7 +11,7 @@ public interface IRMI extends Remote
     
     void restore(String filename) throws RemoteException;
     
-    void state() throws RemoteException;
-    
     void reclaim(int kbytes) throws RemoteException;
+    
+    String state() throws RemoteException;
 }

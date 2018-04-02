@@ -5,18 +5,14 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 
 public class MulticastListenner implements Runnable {
-	private InetAddress address;
-	private int port;
 	private Peer peer;
 	private MulticastSocket socket;
 	
 	public MulticastListenner(InetAddress address, int port, Peer peer) throws IOException {
-		this.address = address;
-		this.port = port;
 		this.peer = peer;
 		
-		socket = new MulticastSocket(port);
-		socket.joinGroup(address);
+		this.socket = new MulticastSocket(port);
+		this.socket.joinGroup(address);
 	}
 
 	@Override

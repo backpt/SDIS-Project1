@@ -26,14 +26,20 @@ public class Delete implements Runnable {
 		}
 		
 		this.peer.saveChunksInfoFile();
-		System.out.println("Terminou delete");
+		this.peer.saveFilesInfoFile();
 	}
 
 	private void deleteChunks(File[] chunks) {
     	for(File file : chunks) {
     		try {
+    			String filename = file.getName();
 				Files.delete(file.toPath());
-				this.peer.removeChunkInfo(file.getName());
+				
+				//Update memory info
+				this.peer.removeChunkInfo(filename);
+				int size = this.peer.getChunksStoredSize().get(filename);
+				this.peer.getChunksStoredSize().remove(filename);
+				this.peer.setDiskUsed(this.peer.getDiskUsed() - size);
 			} catch (IOException e) {
 				System.out.println("Error deleting chunk file.");
 			}
