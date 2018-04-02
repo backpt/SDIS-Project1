@@ -219,7 +219,6 @@ public class EventHandler implements Runnable {
 
 			// Check if I have stored this chunk, to see the perceived replication degree
 			if (this.peer.getChunksStoredSize().get(hashmapKey) != null) {
-				this.peer.getChunksStoredSize().remove(hashmapKey);
 				int actualReplicationDegree = this.peer.getActualReplicationDegrees().get(hashmapKey);
 				int desiredReplicationDegree = this.peer.getDesiredReplicationDegrees().get(hashmapKey);
 
@@ -255,15 +254,17 @@ public class EventHandler implements Runnable {
 		}
 	}
 	
-	private byte[] makePutChunkRequest(String fileID, String chunk, int replicationDegree) {
-		String message = "PUTCHUNK" + " " + this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + fileID + " " + chunk +
+	private byte[] makePutChunkRequest(String fileID, String chunkNr, int replicationDegree) {
+		String message = "PUTCHUNK" + " " + this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + fileID + " " + chunkNr +
 				" " + replicationDegree + " ";
 		message = message + EventHandler.CRLF + EventHandler.CRLF;
 		
+		byte [] chunk = this.peer.getChunk(fileID, chunkNr);
+		
 		byte [] header = message.getBytes();
-		byte[] packet = new byte[header.length + this.body.length];
+		byte[] packet = new byte[header.length + chunk.length];
 		System.arraycopy(header, 0, packet, 0, header.length);
-		System.arraycopy(this.body, 0, packet, header.length, this.body.length);
+		System.arraycopy(chunk, 0, packet, header.length, chunk.length);
 		
 		return packet;
 	}
