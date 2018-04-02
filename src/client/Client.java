@@ -1,5 +1,6 @@
 package client;
 
+import java.io.*;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -14,16 +15,15 @@ public class Client {
 	private static ArrayList<String> operands;
 
 	public static void main(String args[]) {
-		access_rmi = "rmi4";
-		operation = "STATE";
+		/*access_rmi = "4";
+		operation = "BACKUP";
 		operands = new ArrayList<String>();
-		//operands.add("05remoting.pdf");
-		operands.add("0");
-		
-		/*if(!initArgs(args))
-			return;
+		operands.add("05remoting.pdf");
+		operands.add("2");
 		*/
-
+		if(!initArgs(args))
+			return;
+		
 		try {
 			Registry registry = LocateRegistry.getRegistry("localhost");
 			IRMI rmi = (IRMI) registry.lookup(access_rmi);
@@ -98,11 +98,11 @@ public class Client {
 		}
 
 		if (args.length == 3 && operation.equals("DELETE") || operation.equals("RESTORE") || operation.equals("RECLAIM")) {
-			operands.add(args[2]);
+			operands.add(args[2].trim());
 			return true;
 		} else if (args.length == 4 && operation.equals("BACKUP")) {
-			operands.add(args[2]);
-			operands.add(args[3]);
+			operands.add(args[2].trim());
+			operands.add(args[3].trim());
 			return true;
 		} else if (args.length == 2 && operation.equals("STATE")){
 			return true;
