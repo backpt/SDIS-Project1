@@ -69,7 +69,7 @@ public class Backup implements Runnable {
 
 		DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		Date date = new Date();
-		System.out.println("Vou começar o backup: " + dateFormat.format(date));		
+		System.out.println("Vou comecar o backup: " + dateFormat.format(date));		
 		
 		this.peer.getFilesIdentifiers().put(this.fileName, this.fileID);
 		this.peer.getBackupState().put(this.fileID, false);
