@@ -131,8 +131,6 @@ public class Peer implements IRMI {
 		makeDirectory(backupFiles);
 		makeDirectory(chunksFiles);
 		makeDirectory(sharedFolder);
-		
-		this.diskMaxSpace = 10000000; // 10 Mbs 
 
 		if (!loadFilesInfo()) {
 			initializeFilesAttributes();
@@ -182,6 +180,8 @@ public class Peer implements IRMI {
 	private void initializeFilesAttributes() {
 		this.filesIdentifiers = new ConcurrentHashMap<String, String>();
 		this.backupState = new ConcurrentHashMap<String, Boolean>();
+		this.diskMaxSpace = 10000000; // 10 Mbs 
+		this.diskUsed = 0;
 	}
 
 	private void initializeChunksAttributes() {
@@ -189,7 +189,6 @@ public class Peer implements IRMI {
 		this.desiredReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.chunksHosts = new ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>();
 		this.chunksStoredSize =  new ConcurrentHashMap<String, Integer>();
-		this.diskUsed = 0;
 	}
 
 	public void sendReplyToMulticast(multicastChannel type, byte[] packet) throws IOException {
@@ -345,12 +344,12 @@ public class Peer implements IRMI {
 		}
 	}
 
-	public void removeChunkInfo(String hashmapKey) {
+	public void removeChunkInfo(String hashmapKey, int senderID) {
 		CopyOnWriteArrayList<Integer> chunkHosts = this.chunksHosts.get(hashmapKey);
 
 		// Check if is the first stored message of the chunk
-		if (chunkHosts != null && chunkHosts.contains(this.serverID)) {
-			int index = chunkHosts.indexOf(this.serverID);
+		if (chunkHosts != null && chunkHosts.contains(senderID)) {
+			int index = chunkHosts.indexOf(senderID);
 			chunkHosts.remove(index);
 			this.chunksHosts.replace(hashmapKey, chunkHosts);
 			this.actualReplicationDegrees.replace(hashmapKey, chunkHosts.size());

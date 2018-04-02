@@ -48,7 +48,7 @@ public class Reclaim implements Runnable {
 			//Update run-time memory
 			String chunkName = chunkToDelete.getName();
 			chunksDeleted.add(chunkName);
-			this.peer.removeChunkInfo(chunkName);
+			this.peer.removeChunkInfo(chunkName, this.peer.getID());
 			this.peer.getChunksStoredSize().remove(chunkName);
 			this.diskUsed = this.diskUsed - chunkToDelete.length();	
 			
@@ -57,7 +57,9 @@ public class Reclaim implements Runnable {
 		}
 		
 		this.peer.setDiskUsed(this.diskUsed);
+		this.peer.setDiskMaxSpace(this.spaceReclaim);
 		this.peer.saveChunksInfoFile();
+		this.peer.saveFilesInfoFile();
 	}
 	
 	private void sendRemoveMessages() {

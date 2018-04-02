@@ -201,12 +201,17 @@ public class EventHandler implements Runnable {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-
+			
 			hashmapKey = header[4] + "_" + header[3];
-			if(this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
+			
+			//Remove received putchunk to don't conflit with previous backup
+			if (this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
 				this.peer.getReceivedPutChunkMessages().remove(hashmapKey);
 			}
-			this.peer.removeChunkInfo(hashmapKey);
+			
+			//Update memory chunks info
+			this.peer.removeChunkInfo(hashmapKey, Integer.parseInt(header[2]));
+			this.peer.saveChunksInfoFile();
 
 			// Check if I have stored this chunk, to see the perceived replication degree
 			if (this.peer.getChunksStoredSize().get(hashmapKey) != null) {

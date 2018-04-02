@@ -14,8 +14,8 @@ public class Client {
 	private static ArrayList<String> operands;
 
 	public static void main(String args[]) {
-		access_rmi = "rmi2";
-		operation = "RECLAIM";
+		access_rmi = "rmi4";
+		operation = "STATE";
 		operands = new ArrayList<String>();
 		//operands.add("05remoting.pdf");
 		operands.add("0");
