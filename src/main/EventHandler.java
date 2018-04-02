@@ -36,12 +36,12 @@ public class EventHandler implements Runnable {
 	}
 
 	public void splitMessage(DatagramPacket packet) {
-		//To remove empty spaces of the packet
-		byte [] message = new byte[packet.getLength()];
+		// To remove empty spaces of the packet
+		byte[] message = new byte[packet.getLength()];
 		System.arraycopy(packet.getData(), packet.getOffset(), message, 0, packet.getLength());
 
 		ByteArrayInputStream input = new ByteArrayInputStream(message);
-		
+
 		byte character = 0;
 		String allHeader = "";
 
@@ -66,7 +66,7 @@ public class EventHandler implements Runnable {
 	}
 
 	@Override
-	public void run() {		
+	public void run() {
 		// Check if it was me that sent the message - Ignore
 		if (Integer.parseInt(header[2]) == this.peer.getID()) {
 			return;
@@ -76,49 +76,60 @@ public class EventHandler implements Runnable {
 		if (!header[1].equals(this.peer.getProtocolVersion())) {
 			return;
 		}
-		
+
 		String hashmapKey = "";
 		Random random;
 		int waitTime;
 
 		switch (header[0]) {
 
-		case "PUTCHUNK":	
+		case "PUTCHUNK":
 			if (header.length != 6) {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-			
-			//Save desired replication degree of chunk file
+
+			// Save desired replication degree of chunk file
 			hashmapKey = header[4] + "_" + header[3];
-			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
 			
-			//Check if I already stored this chunk
-			CopyOnWriteArrayList<Integer> chunkHosts = peer.getChunkHosts().get(hashmapKey);
-			
-			if(chunkHosts != null && chunkHosts.contains(this.peer.getID())) {
-				return;
+			if(!this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
+				this.peer.getReceivedChunkMessages().add(hashmapKey);
 			}
 			
+			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
+
+			// Check if I already stored this chunk
+			CopyOnWriteArrayList<Integer> chunkHosts = peer.getChunkHosts().get(hashmapKey);
+
+			if (chunkHosts != null && chunkHosts.contains(this.peer.getID())) {
+				return;
+			}
+
+			// Check if I have disk space to store the chunk
+			if (this.body.length + this.peer.getDiskUsed() > this.peer.getDiskSpace()) {
+				return;
+			}
+
 			random = new Random();
-	        waitTime = random.nextInt(400);
-	        
-	        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-			
+			waitTime = random.nextInt(400);
+
+			ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
 			executor.schedule(storeChunk, waitTime, TimeUnit.MILLISECONDS);
 
 			break;
 
-		case "STORED":						
+		case "STORED":
 			if (header.length != 5) {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-			
-			//Save chunks information
-			this.peer.storeChunkInfo(Integer.parseInt(this.header[2]), this.header[3], Integer.parseInt(this.header[4]));
+
+			// Save chunks information
+			this.peer.storeChunkInfo(Integer.parseInt(this.header[2]), this.header[3],
+					Integer.parseInt(this.header[4]));
 			this.peer.saveChunksInfoFile();
-			
+
 			break;
 
 		case "GETCHUNK":
@@ -126,34 +137,41 @@ public class EventHandler implements Runnable {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-			
+
 			hashmapKey = header[4] + "_" + header[3];
-			
-			//Check if I have stored this chunk
-			if(this.peer.getChunkHosts().get(hashmapKey) != null && !this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
+
+			// Stores that received the putchunk message
+			if (!this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
+				this.peer.getReceivedPutChunkMessages().add(hashmapKey);
+			}
+
+			// Check if I have stored this chunk
+			if (this.peer.getChunkHosts().get(hashmapKey) != null
+					&& !this.peer.getChunkHosts().get(hashmapKey).contains(this.peer.getID())) {
 				return;
 			}
-			
+
 			random = new Random();
-	        waitTime = random.nextInt(400);
-	        
-	        ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
-			
-	        Future<Boolean> future = scheduledPool.schedule(receivedChunkMsg, waitTime, TimeUnit.MILLISECONDS);
-	        boolean chunkAlreadySent = false;
-	        try {
-	        	chunkAlreadySent = future.get();
-			} catch (InterruptedException | ExecutionException e) {}
-	        
-			if(!chunkAlreadySent) {				
-				byte [] packet = makeChunkMessage(header[3], header[4]);
+			waitTime = random.nextInt(400);
+
+			ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
+
+			Future<Boolean> future = scheduledPool.schedule(receivedChunkMsg, waitTime, TimeUnit.MILLISECONDS);
+			boolean chunkAlreadySent = false;
+			try {
+				chunkAlreadySent = future.get();
+			} catch (InterruptedException | ExecutionException e) {
+			}
+
+			if (!chunkAlreadySent) {
+				byte[] packet = makeChunkMessage(header[3], header[4]);
 				try {
 					this.peer.sendReplyToMulticast(Peer.multicastChannel.MDR, packet);
 				} catch (IOException e) {
 					System.out.println("Error sending chunk message");
 				}
 			}
-			
+
 			break;
 
 		case "CHUNK":
@@ -161,20 +179,20 @@ public class EventHandler implements Runnable {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-			
+
 			hashmapKey = header[4] + "_" + header[3];
-			
-			//Stores that received the chunk message
-			if(this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
+
+			// Stores that received the chunk message
+			if (!this.peer.getReceivedChunkMessages().contains(hashmapKey)) {
 				this.peer.getReceivedChunkMessages().add(hashmapKey);
-	    	}
-			
-			//Check if I am waiting for this chunk
-			if(this.peer.getWaitRestoredChunks().contains(hashmapKey)) {
-				this.peer.getWaitRestoredChunks().remove(hashmapKey);				
+			}
+
+			// Check if I am waiting for this chunk
+			if (this.peer.getWaitRestoredChunks().contains(hashmapKey)) {
+				this.peer.getWaitRestoredChunks().remove(hashmapKey);
 				this.peer.getRestoredChunks().put(hashmapKey, this.body);
 			}
-			
+
 			break;
 
 		case "DELETE":
@@ -182,70 +200,143 @@ public class EventHandler implements Runnable {
 				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
 				return;
 			}
-			
+
 			new Thread(new Delete(header[3], this.peer)).start();
-			
+
 			break;
 
 		case "REMOVED":
+			if (header.length != 5) {
+				System.out.println("[" + header[0] + "]" + "Header message is invalid.");
+				return;
+			}
+
+			hashmapKey = header[4] + "_" + header[3];
+			if(this.peer.getReceivedPutChunkMessages().contains(hashmapKey)) {
+				this.peer.getReceivedPutChunkMessages().remove(hashmapKey);
+			}
+			this.peer.removeChunkInfo(hashmapKey);
+
+			// Check if I have stored this chunk, to see the perceived replication degree
+			if (this.peer.getChunksStoredSize().get(hashmapKey) != null) {
+				this.peer.getChunksStoredSize().remove(hashmapKey);
+				int actualReplicationDegree = this.peer.getActualReplicationDegrees().get(hashmapKey);
+				int desiredReplicationDegree = this.peer.getDesiredReplicationDegrees().get(hashmapKey);
+
+				if (actualReplicationDegree < desiredReplicationDegree) {
+					reBackupFile(hashmapKey, desiredReplicationDegree);
+				}
+			}
+
 			break;
 		}
 	}
-	
-	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
-		String message = "STORED "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
-				+ " " + chunkNr + " ";
-		message = message + EventHandler.CRLF + EventHandler.CRLF;
-		
-		return message.getBytes();
+
+	private void reBackupFile(String hashmapKey, int replication) {
+		Random random = new Random();
+		int waitTime = random.nextInt(400);
+
+		ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(1);
+
+		Future<Boolean> future = scheduledPool.schedule(receivedPutChunkMsg, waitTime, TimeUnit.MILLISECONDS);
+		boolean chunkBackedUp = false;
+		try {
+			chunkBackedUp = future.get();
+		} catch (InterruptedException | ExecutionException e) {
+		}
+
+		if (!chunkBackedUp) {
+			byte[] packet = makePutChunkRequest(header[3], header[4], replication);
+			try {
+				this.peer.sendReplyToMulticast(Peer.multicastChannel.MDR, packet);
+			} catch (IOException e) {
+				System.out.println("Error sending chunk message");
+			}
+		}
 	}
 	
-	private byte[] makeChunkMessage(String fileID, String chunkNr) {
-		byte [] chunk = this.peer.getChunk(fileID, chunkNr);
-		
-		String message = "CHUNK "+ this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID 
-				+ " " + chunkNr + " ";
-		message = message + EventHandler.CRLF + EventHandler.CRLF;	
+	private byte[] makePutChunkRequest(String fileID, String chunk, int replicationDegree) {
+		String message = "PUTCHUNK" + " " + this.peer.getProtocolVersion() + " " +this.peer.getID() + " " + fileID + " " + chunk +
+				" " + replicationDegree + " ";
+		message = message + EventHandler.CRLF + EventHandler.CRLF;
 		
 		byte [] header = message.getBytes();
-		byte[] packet = new byte[header.length + chunk.length];
+		byte[] packet = new byte[header.length + this.body.length];
 		System.arraycopy(header, 0, packet, 0, header.length);
-		System.arraycopy(chunk, 0, packet, header.length, chunk.length);
+		System.arraycopy(this.body, 0, packet, header.length, this.body.length);
 		
 		return packet;
 	}
 
+	private byte[] makeStoreChunkReply(String fileID, String chunkNr) {
+		String message = "STORED " + this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID + " "
+				+ chunkNr + " ";
+		message = message + EventHandler.CRLF + EventHandler.CRLF;
+
+		return message.getBytes();
+	}
+
+	private byte[] makeChunkMessage(String fileID, String chunkNr) {
+		byte[] chunk = this.peer.getChunk(fileID, chunkNr);
+
+		String message = "CHUNK " + this.peer.getProtocolVersion() + " " + this.peer.getID() + " " + fileID + " "
+				+ chunkNr + " ";
+		message = message + EventHandler.CRLF + EventHandler.CRLF;
+
+		byte[] header = message.getBytes();
+		byte[] packet = new byte[header.length + chunk.length];
+		System.arraycopy(header, 0, packet, 0, header.length);
+		System.arraycopy(chunk, 0, packet, header.length, chunk.length);
+
+		return packet;
+	}
+
 	Runnable storeChunk = () -> {
-    	String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + 
-				"/" + this.header[4] + "_" + this.header[3];
-		
+		String filePath = Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + peer.getID() + "/" + Peer.CHUNKS_FOLDER + "/"
+				+ this.header[4] + "_" + this.header[3];
+
 		try (FileOutputStream fos = new FileOutputStream(filePath)) {
 			fos.write(this.body);
 		} catch (IOException e) {
 			System.out.println("Error saving chunk file");
 		}
-		
-		//Save chunks information
+
+		// Save chunks information
+		this.peer.getChunksStoredSize().put(this.header[4] + "_" + this.header[3], this.body.length);
 		this.peer.storeChunkInfo(this.peer.getID(), this.header[3], Integer.parseInt(this.header[4]));
 		this.peer.saveChunksInfoFile();
-		
-		//Send message STORED
-		byte [] packet = makeStoreChunkReply(this.header[3], this.header[4]);
+
+		// Update disk usage
+		this.peer.setDiskUsed(this.peer.getDiskUsed() + this.body.length);
+
+		// Send message STORED
+		byte[] packet = makeStoreChunkReply(this.header[3], this.header[4]);
 		try {
 			this.peer.sendReplyToMulticast(Peer.multicastChannel.MC, packet);
 		} catch (IOException e) {
 			System.out.println("Error sending message to multicast");
 		}
 	};
-	
+
 	Callable<Boolean> receivedChunkMsg = () -> {
-    	boolean result = false;
-    	String key = this.header[4] + "_" + this.header[3];
-    	
-    	if(this.peer.getReceivedChunkMessages().contains(key)) {
-    		result = true;
-    	}
-    	
-    	return result;
+		boolean result = false;
+		String key = this.header[4] + "_" + this.header[3];
+
+		if (this.peer.getReceivedChunkMessages().contains(key)) {
+			result = true;
+		}
+
+		return result;
+	};
+	
+	Callable<Boolean> receivedPutChunkMsg = () -> {
+		boolean result = false;
+		String key = this.header[4] + "_" + this.header[3];
+
+		if (this.peer.getReceivedPutChunkMessages().contains(key)) {
+			result = true;
+		}
+
+		return result;
 	};
 }

@@ -18,6 +18,7 @@ public class FileChunk implements Callable<Boolean> {
 	private byte[] content;
 	private int replicationDegree;
 	private Peer peer;
+	private int size;
 	
 	public FileChunk(String fileID, int chunkNr, byte[] content, int replication, Peer peer) {
 		this.fileID = fileID;
@@ -25,6 +26,7 @@ public class FileChunk implements Callable<Boolean> {
 		this.content = content;
 		this.replicationDegree = replication;
 		this.peer = peer;
+		this.size = content.length;
 	}
 
 	@Override

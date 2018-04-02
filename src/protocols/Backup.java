@@ -99,7 +99,6 @@ public class Backup implements Runnable {
 			
 			//Add last chunk with zero length
 			if(needChunkZero) {
-				System.out.println("Entrei aqui");
 				byte[] empty = new byte[0];
 				
 				Future<Boolean> result = scheduledPool.submit(new FileChunk(this.fileID, chunkNr, empty, this.replicationDegree, this.peer));
@@ -108,8 +107,6 @@ public class Backup implements Runnable {
 				chunkNr++;
 			}
 		}
-
-		this.peer.getNumberOfChunksPerFile().put(this.fileID, chunkNr);
 		
 		boolean backupDone = waitBackupResult(scheduledPool, threadResults);
 		

@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import protocols.Backup;
+import protocols.Reclaim;
 import protocols.Restore;
 
 public class Peer implements IRMI {
@@ -64,9 +65,9 @@ public class Peer implements IRMI {
 	private ConcurrentHashMap<String, Boolean> backupState;
 
 	/**
-	 * Stores how many chunks a file has - <FileID><Number of Chunks>
+	 * Stores the size file for each chunk - <ChunkNr_FileID><FileSize>
 	 */
-	private ConcurrentHashMap<String, Integer> numberChunksPerFile;
+	private ConcurrentHashMap<String, Integer> chunksStoredSize;
 
 	/**
 	 * Stores the actual replication degree of each chunk file -
@@ -99,6 +100,21 @@ public class Peer implements IRMI {
 	 * Stores the messages chunks that has received - <ChunkNr_FileID>
 	 */
 	private CopyOnWriteArrayList<String> receivedChunkMessages;
+	
+	/**
+	 * Stores the messages chunks that has received - <ChunkNr_FileID>
+	 */
+	private CopyOnWriteArrayList<String> receivedPutChunkMessages;
+	
+	/**
+	 * Disk space to store chunks
+	 */
+	private long diskSpace;
+	
+	/**
+	 * Disk space used to store chunks
+	 */
+	private long diskUsed;
 
 	public Peer(String protocol, int id, String ap, InetAddress addressMC, int portMC, InetAddress addressMDB,
 			int portMDB, InetAddress addressMDR, int portMDR) throws IOException {
@@ -121,6 +137,8 @@ public class Peer implements IRMI {
 		makeDirectory(backupFiles);
 		makeDirectory(chunksFiles);
 		makeDirectory(sharedFolder);
+		
+		this.diskSpace = 10000000; // 10 Mbs 
 
 		if (!loadFilesInfo()) {
 			initializeFilesAttributes();
@@ -130,6 +148,7 @@ public class Peer implements IRMI {
 		}
 
 		this.receivedChunkMessages = new CopyOnWriteArrayList<String>();
+		this.receivedPutChunkMessages = new CopyOnWriteArrayList<String>();
 		this.restoredChunks = new ConcurrentHashMap<String, byte[]>();
 		this.waitRestoredChunks = new CopyOnWriteArrayList<String>();
 
@@ -137,18 +156,9 @@ public class Peer implements IRMI {
 		new Thread(new MulticastListenner(addressMC, portMC, this)).start();
 		new Thread(new MulticastListenner(addressMDB, portMDB, this)).start();
 		new Thread(new MulticastListenner(addressMDR, portMDR, this)).start();
-
-		// Client-Peer Communication Test
-		/*if (this.serverID == 1) {
-			// createBackup("05remoting.pdf", 1);
-			// sendDeleteRequest("05remoting.pdf");
-			restoreFile("05remoting.pdf");
-		}*/
-
 	}
 
 	public Peer() {
-		// TODO Auto-generated constructor stub
 	}
 
 	// Send delete message to MC multicast channel
@@ -174,24 +184,17 @@ public class Peer implements IRMI {
 		}
 	}
 
-	private void restoreFile(String filename) {
-		new Thread(new Restore(filename, this)).start();
-	}
-
 	private void initializeFilesAttributes() {
 		this.filesIdentifiers = new ConcurrentHashMap<String, String>();
 		this.backupState = new ConcurrentHashMap<String, Boolean>();
-		this.numberChunksPerFile = new ConcurrentHashMap<String, Integer>();
 	}
 
 	private void initializeChunksAttributes() {
 		this.actualReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.desiredReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.chunksHosts = new ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>();
-	}
-
-	private void createBackup(String filename, int replication) throws FileNotFoundException, IOException {
-		new Thread(new Backup(filename, replication, this)).start();
+		this.chunksStoredSize =  new ConcurrentHashMap<String, Integer>();
+		this.diskUsed = 0;
 	}
 
 	public void sendReplyToMulticast(multicastChannel type, byte[] packet) throws IOException {
@@ -235,7 +238,6 @@ public class Peer implements IRMI {
 
 			this.filesIdentifiers = (ConcurrentHashMap<String, String>) serverStream.readObject();
 			this.backupState = (ConcurrentHashMap<String, Boolean>) serverStream.readObject();
-			this.numberChunksPerFile = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 
 			serverStream.close();
 		} catch (IOException | ClassNotFoundException e) {
@@ -256,6 +258,8 @@ public class Peer implements IRMI {
 			this.actualReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 			this.desiredReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 			this.chunksHosts = (ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>) serverStream.readObject();
+			this.chunksStoredSize = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
+			this.diskUsed = (long) serverStream.readObject();
 
 			serverStream.close();
 		} catch (IOException | ClassNotFoundException e) {
@@ -275,6 +279,8 @@ public class Peer implements IRMI {
 			serverStream.writeObject(this.actualReplicationDegrees);
 			serverStream.writeObject(this.desiredReplicationDegrees);
 			serverStream.writeObject(this.chunksHosts);
+			serverStream.writeObject(this.chunksStoredSize);
+			serverStream.writeObject(this.diskUsed);
 
 			serverStream.close();
 		} catch (IOException e) {
@@ -290,7 +296,6 @@ public class Peer implements IRMI {
 
 			serverStream.writeObject(this.filesIdentifiers);
 			serverStream.writeObject(this.backupState);
-			serverStream.writeObject(this.numberChunksPerFile);
 
 			serverStream.close();
 		} catch (IOException e) {
@@ -370,8 +375,8 @@ public class Peer implements IRMI {
 		return this.serverID;
 	}
 
-	public ConcurrentHashMap<String, Integer> getNumberOfChunksPerFile() {
-		return this.numberChunksPerFile;
+	public ConcurrentHashMap<String, Integer> getChunksStoredSize() {
+		return this.chunksStoredSize;
 	}
 
 	public ConcurrentHashMap<String, String> getFilesIdentifiers() {
@@ -405,6 +410,10 @@ public class Peer implements IRMI {
 	public CopyOnWriteArrayList<String> getReceivedChunkMessages() {
 		return this.receivedChunkMessages;
 	}
+	
+	public CopyOnWriteArrayList<String> getReceivedPutChunkMessages() {
+		return this.receivedPutChunkMessages;
+	}
 
 	public byte[] getChunk(String fileID, String chunkNr) {
 		File file = new File(Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.CHUNKS_FOLDER + "/"
@@ -423,13 +432,24 @@ public class Peer implements IRMI {
 
 		return chunkBytes;
 	}
+	
+	public long getDiskSpace() {
+		return this.diskSpace;
+	}
+	
+	public long getDiskUsed() {
+		return this.diskUsed;
+	}
+	
+	public void setDiskUsed(long diskUsed) {
+		this.diskUsed = diskUsed;
+	}
 
 	@Override
 	public void backup(String filename, int replicationDegree) throws RemoteException {
+		System.out.println("[SERVER "+this.serverID+"] Starting backup protocol...");
 		try {
-			createBackup(filename, replicationDegree);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			new Thread(new Backup(filename, replicationDegree, this)).start();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -437,13 +457,26 @@ public class Peer implements IRMI {
 
 	@Override
 	public void delete(String filename) throws RemoteException {
+		System.out.println("[SERVER "+this.serverID+"] Starting delete protocol...");
 		sendDeleteRequest(filename);
 	}
 
 	@Override
 	public void restore(String filename) throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting restore...");
-		restoreFile(filename);
+		System.out.println("[SERVER "+this.serverID+"] Starting restore protocol...");
+		new Thread(new Restore(filename, this)).start();		
+	}
+
+	@Override
+	public void state() throws RemoteException {
+		System.out.println("[SERVER "+this.serverID+"] Starting state protocol...");
+	}
+
+	@Override
+	public void reclaim(int kbytes) throws RemoteException {
+		System.out.println("[SERVER "+this.serverID+"] Starting reclaim protocol...");
+		System.out.println("Disk used: "+this.diskUsed);
+		new Thread(new Reclaim(kbytes, this)).start();
 	}
 
 }
