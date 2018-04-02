@@ -10,7 +10,7 @@ import java.net.InetAddress;
 public class RunPeer {
 	
 	public static void main(String[] args) throws IOException {
-		/*if (args.length != 9) {
+		if (args.length != 9) {
             System.out.println("Wrong arguments inserted.\nUse the following command:"
             		+ "'java RunPeer <ProtocolVersion> <PeerID>  <AccessPoint> <MCAddress> <MCPort> <MDBAddress> <MDBPort> <MDRAddress> <MDRPort>'");
             return;
@@ -24,11 +24,9 @@ public class RunPeer {
 		InetAddress addressMDB = InetAddress.getByName(args[5]);
 		int mdbPort = Integer.parseInt(args[6]);
 		InetAddress addressMDR = InetAddress.getByName(args[7]);
-		int mdrPort = Integer.parseInt(args[8]);;*/
+		int mdrPort = Integer.parseInt(args[8]);;
 		
-		int serverID = Integer.parseInt(args[0]);
-		//int serverID = 1;
-		
+		/*int serverID = Integer.parseInt(args[0]);		
 		InetAddress addressMC = InetAddress.getByName("224.0.0.2");
 		InetAddress addressMDB = InetAddress.getByName("224.0.0.3");
 		InetAddress addressMDR = InetAddress.getByName("224.0.0.4");
@@ -36,7 +34,7 @@ public class RunPeer {
 		int mcPort = 4446, mdbPort = 4446, mdrPort = 4446;
 		
 
-		String rmiAddress = "rmi"+serverID; 
+		String rmiAddress = "rmi"+serverID; */
 
 		Peer peer = new Peer(protocolVersion, serverID, addressMC, mcPort, addressMDB, mdbPort, addressMDR, mdrPort);
 		

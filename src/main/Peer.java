@@ -94,24 +94,24 @@ public class Peer implements IRMI {
 	 * Stores the messages chunks that has received - <ChunkNr_FileID>
 	 */
 	private CopyOnWriteArrayList<String> receivedChunkMessages;
-	
+
 	/**
 	 * Stores the messages chunks that has received - <ChunkNr_FileID>
 	 */
 	private CopyOnWriteArrayList<String> receivedPutChunkMessages;
-	
+
 	/**
 	 * Disk space to store chunks
 	 */
 	private long diskMaxSpace;
-	
+
 	/**
 	 * Disk space used to store chunks
 	 */
 	private long diskUsed;
 
-	public Peer(String protocol, int id, InetAddress addressMC, int portMC, InetAddress addressMDB,
-			int portMDB, InetAddress addressMDR, int portMDR) throws IOException {
+	public Peer(String protocol, int id, InetAddress addressMC, int portMC, InetAddress addressMDB, int portMDB,
+			InetAddress addressMDR, int portMDR) throws IOException {
 		this.protocolVersion = protocol;
 		this.serverID = id;
 		this.addressMC = addressMC;
@@ -180,7 +180,7 @@ public class Peer implements IRMI {
 	private void initializeFilesAttributes() {
 		this.filesIdentifiers = new ConcurrentHashMap<String, String>();
 		this.backupState = new ConcurrentHashMap<String, Boolean>();
-		this.diskMaxSpace = 10000000; // 10 Mbs 
+		this.diskMaxSpace = 10000000; // 10 Mbs
 		this.diskUsed = 0;
 	}
 
@@ -188,7 +188,7 @@ public class Peer implements IRMI {
 		this.actualReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.desiredReplicationDegrees = new ConcurrentHashMap<String, Integer>();
 		this.chunksHosts = new ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>();
-		this.chunksStoredSize =  new ConcurrentHashMap<String, Integer>();
+		this.chunksStoredSize = new ConcurrentHashMap<String, Integer>();
 	}
 
 	public void sendReplyToMulticast(multicastChannel type, byte[] packet) throws IOException {
@@ -226,44 +226,54 @@ public class Peer implements IRMI {
 	// Method to load the non volatile memory about the backup files
 	@SuppressWarnings("unchecked")
 	public synchronized boolean loadFilesInfo() {
-		try {
-			ObjectInputStream serverStream = new ObjectInputStream(new FileInputStream(
-					Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.FILES_INFO));
+		File file = new File(Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.FILES_INFO);
+		if (file.exists()) {
+			try {
+				ObjectInputStream serverStream = new ObjectInputStream(new FileInputStream(
+						Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.FILES_INFO));
 
-			this.filesIdentifiers = (ConcurrentHashMap<String, String>) serverStream.readObject();
-			this.backupState = (ConcurrentHashMap<String, Boolean>) serverStream.readObject();
-			this.diskMaxSpace = (long) serverStream.readObject();
-			this.diskUsed = (long) serverStream.readObject();
-			
+				this.filesIdentifiers = (ConcurrentHashMap<String, String>) serverStream.readObject();
+				this.backupState = (ConcurrentHashMap<String, Boolean>) serverStream.readObject();
+				this.diskMaxSpace = (long) serverStream.readObject();
+				this.diskUsed = (long) serverStream.readObject();
 
-			serverStream.close();
-		} catch (IOException | ClassNotFoundException e) {
-			System.err.println("Error loading the files info file.");
+				serverStream.close();
+			} catch (IOException | ClassNotFoundException e) {
+				System.err.println("Error loading the files info file.");
+				return false;
+			}
+
+			return true;
+		} else {
 			return false;
 		}
-
-		return true;
 	}
 
 	// Method to load the non volatile memory about the chunk files
 	@SuppressWarnings("unchecked")
 	public synchronized boolean loadChunksInfo() {
-		try {
-			ObjectInputStream serverStream = new ObjectInputStream(new FileInputStream(
-					Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.CHUNKS_INFO));
+		File file = new File(Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.CHUNKS_INFO);
+		if (file.exists()) {
+			try {
+				ObjectInputStream serverStream = new ObjectInputStream(new FileInputStream(
+						Peer.PEERS_FOLDER + "/" + Peer.DISK_FOLDER + this.serverID + "/" + Peer.CHUNKS_INFO));
 
-			this.actualReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
-			this.desiredReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
-			this.chunksHosts = (ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>) serverStream.readObject();
-			this.chunksStoredSize = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
+				this.actualReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
+				this.desiredReplicationDegrees = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
+				this.chunksHosts = (ConcurrentHashMap<String, CopyOnWriteArrayList<Integer>>) serverStream.readObject();
+				this.chunksStoredSize = (ConcurrentHashMap<String, Integer>) serverStream.readObject();
 
-			serverStream.close();
-		} catch (IOException | ClassNotFoundException e) {
-			System.err.println("Error loading the chunks info file.");
+				serverStream.close();
+			} catch (IOException | ClassNotFoundException e) {
+				System.err.println("Error loading the chunks info file.");
+				return false;
+			}
+
+			return true;
+		} else {
 			return false;
 		}
 
-		return true;
 	}
 
 	// Method to save all the runtime data of the server
@@ -292,7 +302,7 @@ public class Peer implements IRMI {
 			serverStream.writeObject(this.filesIdentifiers);
 			serverStream.writeObject(this.backupState);
 			serverStream.writeObject(this.diskMaxSpace);
-			serverStream.writeObject(this.diskUsed);			
+			serverStream.writeObject(this.diskUsed);
 
 			serverStream.close();
 		} catch (IOException e) {
@@ -407,7 +417,7 @@ public class Peer implements IRMI {
 	public CopyOnWriteArrayList<String> getReceivedChunkMessages() {
 		return this.receivedChunkMessages;
 	}
-	
+
 	public CopyOnWriteArrayList<String> getReceivedPutChunkMessages() {
 		return this.receivedPutChunkMessages;
 	}
@@ -429,30 +439,30 @@ public class Peer implements IRMI {
 
 		return chunkBytes;
 	}
-	
+
 	public long getDiskSpace() {
 		return this.diskMaxSpace;
 	}
-	
+
 	public long getDiskUsed() {
 		return this.diskUsed;
 	}
-	
+
 	public void setDiskUsed(long diskUsed) {
 		this.diskUsed = diskUsed;
 	}
-	
+
 	public void setDiskMaxSpace(long diskSpace) {
 		this.diskMaxSpace = diskSpace;
 	}
-	
+
 	public String getPeerState() {
 		return new PeerState(this).getState();
 	}
 
 	@Override
 	public void backup(String filename, int replicationDegree) throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting backup protocol...");
+		System.out.println("[SERVER " + this.serverID + "] Starting backup protocol...");
 		try {
 			new Thread(new Backup(filename, replicationDegree, this)).start();
 		} catch (IOException e) {
@@ -462,27 +472,27 @@ public class Peer implements IRMI {
 
 	@Override
 	public void delete(String filename) throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting delete protocol...");
+		System.out.println("[SERVER " + this.serverID + "] Starting delete protocol...");
 		sendDeleteRequest(filename);
 	}
 
 	@Override
 	public void restore(String filename) throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting restore protocol...");
-		new Thread(new Restore(filename, this)).start();		
+		System.out.println("[SERVER " + this.serverID + "] Starting restore protocol...");
+		new Thread(new Restore(filename, this)).start();
 	}
 
 	@Override
 	public String state() throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting state feature...");
+		System.out.println("[SERVER " + this.serverID + "] Starting state feature...");
 		System.out.println("State returned.");
 		return this.getPeerState();
 	}
 
 	@Override
 	public void reclaim(int kbytes) throws RemoteException {
-		System.out.println("[SERVER "+this.serverID+"] Starting reclaim protocol...");
-		System.out.println("Disk used: "+this.diskUsed);
+		System.out.println("[SERVER " + this.serverID + "] Starting reclaim protocol...");
+		System.out.println("Disk used: " + this.diskUsed);
 		new Thread(new Reclaim(kbytes, this)).start();
 	}
 

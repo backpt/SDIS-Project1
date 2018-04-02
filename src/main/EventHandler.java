@@ -67,11 +67,6 @@ public class EventHandler implements Runnable {
 			return;
 		}
 
-		// Compare protocol version of Peer and version of message
-		if (!header[1].equals(this.peer.getProtocolVersion())) {
-			return;
-		}
-
 		String hashmapKey = "";
 		Random random;
 		int waitTime;
@@ -92,6 +87,11 @@ public class EventHandler implements Runnable {
 				this.peer.getReceivedPutChunkMessages().add(hashmapKey);
 			}
 			
+			// Peer initiator of backup don't store any chunk of the file
+			if(this.peer.getBackupState().get(header[3]) != null) {
+				return;
+			}
+			
 			this.peer.getDesiredReplicationDegrees().put(hashmapKey, Integer.parseInt(header[5]));
 
 			// Check if I already stored this chunk
@@ -105,6 +105,13 @@ public class EventHandler implements Runnable {
 			if (this.body.length + this.peer.getDiskUsed() > this.peer.getDiskSpace()) {
 				return;
 			}
+			
+			/*
+			//If is an enhancement peer it will check the perceived replication degree before store the chunk
+			if(this.peer.getProtocolVersion().equals("2.0") && fulfilledRep(hashmapKey)) {
+				return;
+			}
+			*/
 
 			random = new Random();
 			waitTime = random.nextInt(400);
@@ -225,6 +232,19 @@ public class EventHandler implements Runnable {
 
 			break;
 		}
+	}
+
+	private boolean fulfilledRep(String key) {
+		if(this.peer.getActualReplicationDegrees().get(key) != null) {
+			int desiredRepDegree = this.peer.getDesiredReplicationDegrees().get(key);
+			int perceivedRepDegree = this.peer.getActualReplicationDegrees().get(key);
+			
+			if(perceivedRepDegree >= desiredRepDegree) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 
 	private void reBackupFile(String hashmapKey, int replication) {
