@@ -1,0 +1,4 @@
+Para compilar o nosso projeto, corre se o ficheiro compiler.sh que se encontra dentro da pasta scripts.
+Como utilizamos RMI, é necessário iniciar lo, correndo o ficheiro rmi.sh.
+Depois inicializa se os peers com a ajuda do peers.sh, no entanto, os ficheiros a serem usados para teste devem ser colocados na pasta scripts/Peers/Shared após a inicialização dos peers. 
+O client é inicializado com o ficheiro client.sh e seguir as instruções que aparecem, sendo um exemplo de comando: peer1 BACKUP "test.pdf" 3   
